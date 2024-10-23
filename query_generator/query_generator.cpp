@@ -2,6 +2,8 @@
 #include <string>
 // NOLINTNEXTLINE(build/include_subdir)
 #include "llm_tokens_options.hpp"
+#include "query_generator.hpp"
+
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
     std::cout << "Please provide single parameter (0, 1, 2)\n";
@@ -51,14 +53,17 @@ int main(int argc, char *argv[]) {
         "taken "
         "via argv only. "
         "Please return a program (C++ program) and a concrete example of an "
-        "input (BASH). "
         "The C++ program will be with code triggering " +
         randomCompilerOpt +
         " optimizations, covers this part of the compiler " +
-        randomCompilerParts + ", and exercises this idea in C: " + randomPL +
+        randomCompilerParts + ", and exercises this idea in C++: " + randomPL +
         ". To recap the code contains these: " + randomCompilerOpt + " and " +
         randomCompilerParts + " and " + randomPL;
-    std::cout << prompt << std::endl;
+    std::cout << "prompt" << prompt << std::endl;
+    QueryGenerator qGenerate;
+    qGenerate.loadModel();
+    std::string response = qGenerate.askModel(prompt);
+    std::cout << "response: " << response << std::endl;
   } else {
     std::string res = argv[2];
     if (res.empty()) {
