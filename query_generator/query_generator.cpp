@@ -67,10 +67,15 @@ int main(int argc, char *argv[]) {
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
     std::cout << "response: " << response << std::endl;
-    Parser parser; //= new Parser();
+    // TODO: write constructor for the class Parser
+
+    Parser parser;
     std::string program = parser.getCppProgram(response);
+    std::string command = parser.getArgsInput(response);
     std::cout << program << std::endl;
-    TestWriter writer; //= new Writer();
+    std::cout << command << std::endl;
+    // TODO: write constructor for the class TestWriter
+    TestWriter writer;
     if (!writer.writeFile(program)) {
       std::cerr << "Error: failed writing test file\n";
     }
