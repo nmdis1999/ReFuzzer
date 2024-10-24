@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string>
+#include <errno.h>
 // NOLINTNEXTLINE(build/include_subdir)
 #include "llm_tokens_options.hpp"
 #include "query_generator.hpp"
+#include "Parser.hpp"
+#include "TestWriter.hpp"
 
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
@@ -64,6 +67,13 @@ int main(int argc, char *argv[]) {
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
     std::cout << "response: " << response << std::endl;
+    Parser parser; //= new Parser();
+    std::string program = parser.getCppProgram(response);
+    std::cout << program << std::endl;
+    TestWriter writer; //= new Writer();
+    if (!writer.writeFile(program)) {
+      std::cerr << "Error: failed writing test file\n";
+    }
   } else {
     std::string res = argv[2];
     if (res.empty()) {
@@ -73,9 +83,6 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    // Parser parser;
-    //
-    // std::string program = parser.getCppProgram(res);
     // std::string callLine = parser.getArgsInput(res);
     // std::string argsType = parser.getTypes(res, callLine);
     //

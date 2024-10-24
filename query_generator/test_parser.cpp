@@ -47,7 +47,7 @@ int main() {
     return 0;
 })";
 
-  std::string result = parser.getCProgram(test_input);
+  std::string result = parser.getCppProgram(test_input);
 
   std::string normalized_result = normalize_whitespace(result);
   std::string normalized_expected = normalize_whitespace(expected);
