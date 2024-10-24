@@ -15,7 +15,6 @@ This is in development stage.
 Here is a simple C++ program that demonstrates constant folding optimizations, covers the process of assembly generation and exercises bit operations::w
 
 ```cpp
-```cpp
 
 #include \u003ciostream\u003e
 #include \u003ccstring\u003e
