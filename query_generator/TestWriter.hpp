@@ -48,28 +48,29 @@ private:
 
     std::stringstream ss;
     ss << prefix << "_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S")
-       << "_" << ms.count() << ".cpp";
+       << "_" << ms.count() << ".c";
 
     return ss.str();
   }
 
 public:
-  bool writeFile(const std::string &filename, const std::string &content) {
+  std::string writeFile(const std::string &filename,
+                        const std::string &content) {
     try {
       if (!createDirectory()) {
-        return false;
+        return "";
       }
       std::string fullPath = "../test/" + filename;
 
       if (fileExists(fullPath)) {
         std::cerr << "File '" << fullPath << "' already exists" << std::endl;
-        return false;
+        return "";
       }
 
       std::ofstream file(fullPath);
       if (!file.is_open()) {
         std::cerr << "Failed to open file '" << fullPath << "'" << std::endl;
-        return false;
+        return "";
       }
 
       file << content;
@@ -78,21 +79,21 @@ public:
         std::cerr << "Error: Failed to write to file '" << fullPath << "'"
                   << std::endl;
         file.close();
-        return false;
+        return "";
       }
 
       file.close();
       std::cout << "Code successfully written to '" << fullPath << "'"
                 << std::endl;
-      return true;
+      return fullPath;
 
     } catch (const std::exception &e) {
       std::cerr << "Error: " << e.what() << std::endl;
-      return false;
+      return "";
     }
   }
 
-  bool writeFile(const std::string &content) {
+  std::string writeFile(const std::string &content) {
     return writeFile(generateFilename("test_file_"), content);
   }
 };

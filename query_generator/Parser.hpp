@@ -18,93 +18,136 @@ private:
 
       size_t lineEnd = input.find('\n', start);
       if (lineEnd == std::string::npos)
-        return "";
+        lineEnd = input.length();
 
       std::string line = input.substr(start, lineEnd - start);
 
-      size_t cmdStart = line.find("./");
-      if (cmdStart == std::string::npos)
-        return "0";
-
-      std::string command = line.substr(cmdStart + 2);
-
-      // Simplified regex patterns with proper escaping
-      try {
-        // Remove backticks and quotes
-        command = std::regex_replace(command, std::regex("`|'|\""), "");
-        // Trim leading/trailing whitespace
-        command =
-            std::regex_replace(command, std::regex("^[ \\t]+|[ \\t]+$"), "");
-      } catch (const std::regex_error &e) {
-        // If regex fails, fall back to manual cleaning
-        command.erase(std::remove(command.begin(), command.end(), '`'),
-                      command.end());
-        command.erase(std::remove(command.begin(), command.end(), '\''),
-                      command.end());
-        command.erase(std::remove(command.begin(), command.end(), '\"'),
-                      command.end());
-        // Trim whitespace manually
-        while (!command.empty() && std::isspace(command.front()))
-          command.erase(0, 1);
-        while (!command.empty() && std::isspace(command.back()))
-          command.pop_back();
+      // Try to find gcc command first
+      size_t gccStart = line.find("gcc");
+      if (gccStart != std::string::npos) {
+        std::string command = line.substr(gccStart);
+        try {
+          command = std::regex_replace(command, std::regex("`|'|\""), "");
+          command =
+              std::regex_replace(command, std::regex("^[ \\t]+|[ \\t]+$"), "");
+        } catch (const std::regex_error &e) {
+          command.erase(std::remove(command.begin(), command.end(), '`'),
+                        command.end());
+          command.erase(std::remove(command.begin(), command.end(), '\''),
+                        command.end());
+          command.erase(std::remove(command.begin(), command.end(), '\"'),
+                        command.end());
+          while (!command.empty() && std::isspace(command.front()))
+            command.erase(0, 1);
+          while (!command.empty() && std::isspace(command.back()))
+            command.pop_back();
+        }
+        return "COMPILE:" + command;
       }
 
-      return command;
+      // If no gcc command found, try to find runtime command (./)
+      size_t runtimeStart = line.find("./");
+      if (runtimeStart != std::string::npos) {
+        std::string command = line.substr(runtimeStart + 2);
+        try {
+          command = std::regex_replace(command, std::regex("`|'|\""), "");
+          command =
+              std::regex_replace(command, std::regex("^[ \\t]+|[ \\t]+$"), "");
+        } catch (const std::regex_error &e) {
+          command.erase(std::remove(command.begin(), command.end(), '`'),
+                        command.end());
+          command.erase(std::remove(command.begin(), command.end(), '\''),
+                        command.end());
+          command.erase(std::remove(command.begin(), command.end(), '\"'),
+                        command.end());
+          while (!command.empty() && std::isspace(command.front()))
+            command.erase(0, 1);
+          while (!command.empty() && std::isspace(command.back()))
+            command.pop_back();
+        }
+        return "RUNTIME:" + command;
+      }
+
+      return "0";
     } catch (const std::exception &e) {
       return "0";
     }
   }
 
 public:
-  std::string getArgsInput(const std::string &response) {
+  std::vector<std::string> getCommands(const std::string &response) {
+    std::vector<std::string> commands;
     std::vector<std::string> markers = {"```bash",  "```BASH",  "```Bash",
                                         "```shell", "```SHELL", "```Shell",
-                                        "```sh",    "```"};
+                                        "```sh",    "```",      "```C"};
 
+    std::string compileCmd = "", runtimeCmd = "";
+
+    // First pass: check all markers for commands
     for (const auto &marker : markers) {
       std::string result = extractCommand(response, marker);
-      if (!result.empty() && result != "0") {
-        return result;
+      if (result.substr(0, 8) == "COMPILE:" && compileCmd.empty()) {
+        compileCmd = result.substr(8);
+      } else if (result.substr(0, 8) == "RUNTIME:" && runtimeCmd.empty()) {
+        runtimeCmd = result.substr(8);
       }
     }
 
-    try {
-      // Fixed regex pattern
-      std::regex cmdPattern("\\.\\/[[:alnum:]_]+(?:[[:space:]]+[^`\\n]*)?");
-      std::smatch matches;
-      if (std::regex_search(response, matches, cmdPattern)) {
-        std::string command = matches[0];
-        // Remove ./ from the start
-        command = command.substr(2);
-        return command;
-      }
-    } catch (const std::regex_error &e) {
-      // Fallback: basic string search if regex fails
-      size_t pos = response.find("./");
-      if (pos != std::string::npos) {
-        size_t endPos = response.find('\n', pos);
-        if (endPos == std::string::npos)
-          endPos = response.length();
-        std::string command = response.substr(pos + 2, endPos - (pos + 2));
-        // Basic cleanup
-        command.erase(std::remove(command.begin(), command.end(), '`'),
-                      command.end());
-        while (!command.empty() && std::isspace(command.front()))
-          command.erase(0, 1);
-        while (!command.empty() && std::isspace(command.back()))
-          command.pop_back();
-        return command;
+    // Second pass: use regex if needed
+    if (compileCmd.empty() || runtimeCmd.empty()) {
+      try {
+        // Look for runtime command with regex
+        std::regex runtimePattern(
+            "\\.\\/[[:alnum:]_]+(?:[[:space:]]+[^`\\n]*)?");
+        std::smatch matches;
+        if (runtimeCmd.empty() &&
+            std::regex_search(response, matches, runtimePattern)) {
+          runtimeCmd = matches[0].str().substr(2); // Remove ./
+        }
+
+        // Look for compile command with regex
+        std::regex compilePattern("gcc[^\\n`]*");
+        if (compileCmd.empty() &&
+            std::regex_search(response, matches, compilePattern)) {
+          compileCmd = matches[0].str();
+        }
+      } catch (const std::regex_error &e) {
+        // Fallback to basic string search if regex fails
+        if (runtimeCmd.empty()) {
+          size_t pos = response.find("./");
+          if (pos != std::string::npos) {
+            size_t endPos = response.find('\n', pos);
+            if (endPos == std::string::npos)
+              endPos = response.length();
+            runtimeCmd = response.substr(pos + 2, endPos - (pos + 2));
+          }
+        }
+
+        if (compileCmd.empty()) {
+          size_t pos = response.find("gcc");
+          if (pos != std::string::npos) {
+            size_t endPos = response.find('\n', pos);
+            if (endPos == std::string::npos)
+              endPos = response.length();
+            compileCmd = response.substr(pos, endPos - pos);
+          }
+        }
       }
     }
 
-    return "0";
+    if (!compileCmd.empty()) {
+      commands.push_back(compileCmd);
+    }
+    if (!runtimeCmd.empty()) {
+      commands.push_back(runtimeCmd);
+    }
+
+    return commands;
   }
-
-  std::string getCppProgram(const std::string &response) {
+  std::string getCProgram(const std::string &response) {
     std::string result;
 
-    size_t start = response.find("```cpp");
+    size_t start = response.find("```C");
     if (start == std::string::npos) {
       return "";
     }

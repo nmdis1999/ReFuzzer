@@ -6,6 +6,7 @@
 #include "query_generator.hpp"
 #include "Parser.hpp"
 #include "TestWriter.hpp"
+#include "object_generator.hpp"
 
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
@@ -32,17 +33,16 @@ int main(int argc, char *argv[]) {
 
   if (parameter == 0) {
     std::string promptStart =
-        "Generate a concise C++ file without unnecessary includes, but with "
+        "Generate a concise C file without unnecessary includes, but with "
         "output. "
         "The C file should be a standard program, but with a twist: "
         "it replaces all constants in the main function with argument "
         "assignments, adds required includes.";
-    promptStart +=
-        "Example ```C++\n#include <stdio.h>\n#include <stdlib.h>\nint "
-        "main(int argc, char *argv[]) {\n"
-        "  if (argc != 2) {\n    printf(\"Usage: %s <value>\\n\", "
-        "argv[0]);\n    return 1;\n  }\n  int x = atoi(argv[1]);\n"
-        "  return x - 4;\n}```\nDo you think you can do that?";
+    promptStart += "Example ```C\n#include <stdio.h>\n#include <stdlib.h>\nint "
+                   "main(int argc, char *argv[]) {\n"
+                   "  if (argc != 2) {\n    printf(\"Usage: %s <value>\\n\", "
+                   "argv[0]);\n    return 1;\n  }\n  int x = atoi(argv[1]);\n"
+                   "  return x - 4;\n}```\nDo you think you can do that?";
     std::cout << promptStart << std::endl;
   } else if (parameter == 1) {
     LLMTokensOption llmIndexedTokens;
@@ -50,35 +50,61 @@ int main(int argc, char *argv[]) {
     std::string randomCompilerOpt = llmIndexedTokens.getRandomCompilerOpt();
     std::string randomCompilerParts = llmIndexedTokens.getRandomCompilerParts();
     std::string randomPL = llmIndexedTokens.getRandomPL();
+    std::string compilerFlag = llmIndexedTokens.getRandomCompilerFlag();
 
     std::string prompt =
-        "Coding task: give me a program in C++ with all includes. Input is "
+        "Coding task: give me a program in C with all includes. Input is "
         "taken "
         "via argv only. "
-        "Please return a program (C++ program) and a concrete example of an "
-        "The C++ program will be with code triggering " +
-        randomCompilerOpt +
-        " optimizations, covers this part of the compiler " +
-        randomCompilerParts + ", and exercises this idea in C++: " + randomPL +
+        "Please return a program (C program) and a concrete example. "
+        "The C program will be with code triggering with " +
+        compilerFlag + " flag  and program will cover  " + randomCompilerOpt +
+        " optimizations part of the compiler " + randomCompilerParts +
+        ", and exercises this idea in C: " + randomPL +
         ". To recap the code contains these: " + randomCompilerOpt + " and " +
-        randomCompilerParts + " and " + randomPL;
+        randomCompilerParts + " and " + randomPL +
+        " the command to compile code should use " + compilerFlag;
     std::cout << "prompt" << prompt << std::endl;
     QueryGenerator qGenerate;
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
     std::cout << "response: " << response << std::endl;
     // TODO: write constructor for the class Parser
-
     Parser parser;
-    std::string program = parser.getCppProgram(response);
-    std::string command = parser.getArgsInput(response);
-    std::cout << program << std::endl;
-    std::cout << command << std::endl;
+    std::string program = parser.getCProgram(response);
+
+    std::vector<std::string> commands = parser.getCommands(response);
+
+    std::cout << "Program extracted successfully.\n";
+    if (!commands.empty()) {
+      std::cout << "Commands found:\n";
+      for (size_t i = 0; i < commands.size(); i++) {
+        if (i == 0) {
+          std::cout << "Compilation command: " << commands[i] << std::endl;
+        }
+        if (i == 1) {
+          std::cout << "Runtime command: " << commands[i] << std::endl;
+        }
+      }
+    } else {
+      std::cout << "No commands found.\n";
+    }
+
     // TODO: write constructor for the class TestWriter
     TestWriter writer;
-    if (!writer.writeFile(program)) {
+    std::string sourcePath = writer.writeFile(program);
+    if (sourcePath.empty()) {
       std::cerr << "Error: failed writing test file\n";
+      return 1;
     }
+
+    generateObject object;
+    std::string objectPath = object.generateObjectFile(sourcePath, commands);
+    if (objectPath.empty()) {
+      std::cerr << "Error: failed generating object file\n";
+      return 1;
+    }
+
   } else {
     std::string res = argv[2];
     if (res.empty()) {
