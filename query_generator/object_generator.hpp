@@ -4,72 +4,136 @@
 #include "TestWriter.hpp"
 #include <cstdlib>
 #include <sys/stat.h>
+#include <fstream>
+#include <sstream>
+#include <chrono>
+#include <array>
 
-class generateObject {
+class GenerateObject {
 private:
-  bool createObjectDirectory() {
-    const std::string objDir = "../object";
-
+  bool createDirectory(const std::string &dir) {
     struct stat info;
-    if (stat(objDir.c_str(), &info) != 0) {
-      if (mkdir(objDir.c_str(), 0755) != 0) {
-        std::cerr << "Error creating object directory: " << strerror(errno)
-                  << std::endl;
+    if (stat(dir.c_str(), &info) != 0) {
+      if (mkdir(dir.c_str(), 0755) != 0) {
+        std::cerr << "Error creating directory " << dir << ": "
+                  << strerror(errno) << std::endl;
         return false;
       }
-      std::cout << "Object directory created successfully.\n";
+      std::cout << "Directory created successfully: " << dir << std::endl;
+    }
+    return true;
+  }
+
+  std::string getTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+  }
+
+  void logError(const std::string &operation, const std::string &error,
+                const std::string &sourceFile) {
+    if (!createDirectory("../log")) {
+      return;
+    }
+
+    size_t lastSlash = sourceFile.find_last_of("/\\");
+    std::string filename = (lastSlash != std::string::npos)
+                               ? sourceFile.substr(lastSlash + 1)
+                               : sourceFile;
+
+    size_t lastDot = filename.find_last_of('.');
+    std::string baseName =
+        (lastDot != std::string::npos) ? filename.substr(0, lastDot) : filename;
+
+    std::string logFile = "../log/" + baseName + ".log";
+
+    std::ofstream log(logFile, std::ios_base::app);
+    if (log.is_open()) {
+      log << "[" << getTimestamp() << "] Operation: " << operation << "\n";
+      log << "Error: " << error << "\n";
+      log << "----------------------------------------\n";
+      log.close();
+    }
+  }
+
+  bool createObjectDirectory() {
+    if (!createDirectory("../object")) {
+      logError("createObjectDirectory", "Failed to create object directory",
+               "object_directory");
+      return false;
     }
     return true;
   }
 
   std::string generateObjectFilename(const std::string &sourceFile) {
-    size_t lastSlash = sourceFile.find_last_of("/");
-    std::string baseName = (lastSlash == std::string::npos)
-                               ? sourceFile
-                               : sourceFile.substr(lastSlash + 1);
+    size_t lastDot = sourceFile.find_last_of('.');
+    std::string baseName = (lastDot != std::string::npos)
+                               ? sourceFile.substr(0, lastDot)
+                               : sourceFile;
+    return "../object/" + baseName + ".o";
+  }
 
-    size_t lastDot = baseName.find_last_of('.');
-    if (lastDot != std::string::npos) {
-      baseName = baseName.substr(0, lastDot);
+  bool executeCommand(const std::string &command, std::string &output,
+                      const std::string &sourceFile) {
+    std::array<char, 128> buffer;
+    output.clear();
+
+    std::string cmd = command + " 2>&1";
+    FILE *pipe = popen(cmd.c_str(), "r");
+
+    if (!pipe) {
+      logError("executeCommand",
+               "Failed to create pipe for command: " + command, sourceFile);
+      return false;
     }
 
-    return "../object/" + baseName + ".o";
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+      output += buffer.data();
+    }
+
+    int status = pclose(pipe);
+    return status == 0;
   }
 
 public:
   std::string generateObjectFile(const std::string &filename,
                                  const std::vector<std::string> &commands) {
-    if (commands.empty()) {
-      std::cerr << "No commands provided" << std::endl;
+    if (filename.empty()) {
+      logError("generateObjectFile", "Source file path is empty",
+               "empty_source");
       return "";
     }
 
     if (!createObjectDirectory()) {
-      std::cerr << "Failed to create object directory" << std::endl;
       return "";
     }
 
-    std::string sourceFile = filename;
+    std::string objectFile = generateObjectFilename(filename);
 
-    if (sourceFile.empty()) {
-      std::cerr << "Source file path is empty" << std::endl;
-      return "";
-    }
+    std::string gccCmd = "gcc " + filename + " -o " + objectFile;
 
-    std::string objectFile = generateObjectFilename(sourceFile);
-
-    std::string gccCmd = "gcc -c " + sourceFile + " -o " + objectFile;
-
-    int result = std::system(gccCmd.c_str());
-    if (result == 0) {
-      std::cout << "Successfully generated object file: " << objectFile
-                << std::endl;
-      return objectFile;
-    } else {
-      std::cerr << "Failed to generate object file. Command: " << gccCmd
+    std::string commandOutput;
+    if (!executeCommand(gccCmd, commandOutput, filename)) {
+      if (!commandOutput.empty()) {
+        logError("gcc compilation", commandOutput, filename);
+      }
+      std::cerr << "Compilation failed. Check log file for details."
                 << std::endl;
       return "";
     }
+
+    struct stat buffer;
+    if (stat(objectFile.c_str(), &buffer) != 0) {
+      logError("generateObjectFile",
+               "Object file was not created: " + objectFile, filename);
+      return "";
+    }
+
+    std::cout << "Successfully generated object file: " << objectFile
+              << std::endl;
+    return objectFile;
   }
 };
 

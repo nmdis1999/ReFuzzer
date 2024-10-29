@@ -9,6 +9,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <errno.h>
+#include <iomanip>
 
 class TestWriter {
 private:

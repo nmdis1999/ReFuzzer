@@ -51,28 +51,36 @@ int main(int argc, char *argv[]) {
     std::string randomCompilerParts = llmIndexedTokens.getRandomCompilerParts();
     std::string randomPL = llmIndexedTokens.getRandomPL();
     std::string compilerFlag = llmIndexedTokens.getRandomCompilerFlag();
-
-    std::string prompt =
-        "Coding task: give me a program in C with all includes. Input is "
-        "taken "
-        "via argv only. "
-        "Please return a program (C program) and a concrete example. "
-        "The C program will be with code triggering with " +
-        compilerFlag + " flag  and program will cover  " + randomCompilerOpt +
-        " optimizations part of the compiler " + randomCompilerParts +
-        ", and exercises this idea in C: " + randomPL +
-        ". To recap the code contains these: " + randomCompilerOpt + " and " +
-        randomCompilerParts + " and " + randomPL +
-        " the command to compile code should use " + compilerFlag;
+    std::string llvmPasses = llmIndexedTokens.getRandomLLVMPass();
+    std::cout << "llvm pass selected " << llvmPasses << std::endl;
+    std::string prompt = "Generate a c program which doesn't compile.";
+    // std::string prompt =
+    //     "Coding task: give me a program in C "
+    //     "with all includes. Input is "
+    //     "taken "
+    //     "via argv only. "
+    //     "Please return a program (C program) and a concrete example. "
+    //     "The C program will be with code triggering with " +
+    //     compilerFlag + " flag  and program will cover  " +
+    //     randomCompilerOpt
+    //     + " optimizations part of the compiler " + randomCompilerParts +
+    //     ", and exercises this idea in C: " + randomPL +
+    //     ". To recap the code contains these: " + randomCompilerOpt + "
+    //     and "
+    //     + randomCompilerParts + " and " + randomPL + " the command to
+    //     compile code should use " + compilerFlag;
     std::cout << "prompt" << prompt << std::endl;
     QueryGenerator qGenerate;
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
-    std::cout << "response: " << response << std::endl;
+    // std::cout << "response: " << response << std::endl;
     // TODO: write constructor for the class Parser
     Parser parser;
     std::string program = parser.getCProgram(response);
-
+    // std::cout << "============================" << std::endl;
+    // std::cout << "Program: " << program << std::endl;
+    // std::cout << "============================" << std::endl;
+    //
     std::vector<std::string> commands = parser.getCommands(response);
 
     std::cout << "Program extracted successfully.\n";
@@ -98,7 +106,7 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    generateObject object;
+    GenerateObject object;
     std::string objectPath = object.generateObjectFile(sourcePath, commands);
     if (objectPath.empty()) {
       std::cerr << "Error: failed generating object file\n";
