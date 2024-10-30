@@ -2,12 +2,12 @@
 #define OBJECT_GENERATOR
 
 #include "TestWriter.hpp"
+#include <array>
+#include <chrono>
 #include <cstdlib>
-#include <sys/stat.h>
 #include <fstream>
 #include <sstream>
-#include <chrono>
-#include <array>
+#include <sys/stat.h>
 
 class GenerateObject {
 private:
@@ -68,10 +68,14 @@ private:
   }
 
   std::string generateObjectFilename(const std::string &sourceFile) {
-    size_t lastDot = sourceFile.find_last_of('.');
-    std::string baseName = (lastDot != std::string::npos)
-                               ? sourceFile.substr(0, lastDot)
+    size_t lastSlash = sourceFile.find_last_of("/\\");
+    std::string filename = (lastSlash != std::string::npos)
+                               ? sourceFile.substr(lastSlash + 1)
                                : sourceFile;
+
+    size_t lastDot = filename.find_last_of('.');
+    std::string baseName =
+        (lastDot != std::string::npos) ? filename.substr(0, lastDot) : filename;
     return "../object/" + baseName + ".o";
   }
 

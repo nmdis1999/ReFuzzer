@@ -1,12 +1,12 @@
+#include <errno.h>
 #include <iostream>
 #include <string>
-#include <errno.h>
 // NOLINTNEXTLINE(build/include_subdir)
-#include "llm_tokens_options.hpp"
-#include "query_generator.hpp"
 #include "Parser.hpp"
 #include "TestWriter.hpp"
+#include "llm_tokens_options.hpp"
 #include "object_generator.hpp"
+#include "query_generator.hpp"
 
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
@@ -51,74 +51,54 @@ int main(int argc, char *argv[]) {
     std::string randomCompilerParts = llmIndexedTokens.getRandomCompilerParts();
     std::string randomPL = llmIndexedTokens.getRandomPL();
     std::string compilerFlag = llmIndexedTokens.getRandomCompilerFlag();
-    std::string llvmPasses = llmIndexedTokens.getRandomLLVMPass();
-    std::cout << "llvm pass selected " << llvmPasses << std::endl;
-    std::string prompt = "Generate a c program which doesn't compile.";
-    // std::string prompt =
-    //     "Coding task: give me a program in C "
-    //     "with all includes. Input is "
-    //     "taken "
-    //     "via argv only. "
-    //     "Please return a program (C program) and a concrete example. "
-    //     "The C program will be with code triggering with " +
-    //     compilerFlag + " flag  and program will cover  " +
-    //     randomCompilerOpt
-    //     + " optimizations part of the compiler " + randomCompilerParts +
-    //     ", and exercises this idea in C: " + randomPL +
-    //     ". To recap the code contains these: " + randomCompilerOpt + "
-    //     and "
-    //     + randomCompilerParts + " and " + randomPL + " the command to
-    //     compile code should use " + compilerFlag;
+    std::string optLevel = llmIndexedTokens.getRandomOptLevel();
+    std::string prompt =
+        "Coding task: give me a program in C "
+        "with all includes. Input is "
+        "taken via argv only. "
+        "Please return a program (C program) and a concrete example. "
+        "The C program will be with code triggering with " +
+        optLevel + " and program will cover " + randomCompilerOpt +
+        " optimizations part of the compiler " + randomCompilerParts +
+        ", and exercises this idea in C: " + randomPL +
+        ". To recap the code contains these: " + optLevel + ", " +
+        randomCompilerOpt + " and " + randomCompilerParts + " and " + randomPL +
+        " the command to compile code should use ";
+
     std::cout << "prompt" << prompt << std::endl;
     QueryGenerator qGenerate;
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
-    // std::cout << "response: " << response << std::endl;
     // TODO: write constructor for the class Parser
     Parser parser;
     std::string program = parser.getCProgram(response);
-    // std::cout << "============================" << std::endl;
-    // std::cout << "Program: " << program << std::endl;
-    // std::cout << "============================" << std::endl;
+    std::cout << "============================" << std::endl;
+    std::cout << "Response: " << response << std::endl;
+    std::cout << "============================" << std::endl;
+
+    // auto compile_cmd = parser.getGccCommand(response);
+    // auto runtime_cmd = parser.getRuntimeCommand(response);
     //
-    std::vector<std::string> commands = parser.getCommands(response);
-
-    std::cout << "Program extracted successfully.\n";
-    if (!commands.empty()) {
-      std::cout << "Commands found:\n";
-      for (size_t i = 0; i < commands.size(); i++) {
-        if (i == 0) {
-          std::cout << "Compilation command: " << commands[i] << std::endl;
-        }
-        if (i == 1) {
-          std::cout << "Runtime command: " << commands[i] << std::endl;
-        }
-      }
-    } else {
-      std::cout << "No commands found.\n";
-    }
-
-    // TODO: write constructor for the class TestWriter
-    TestWriter writer;
-    std::string sourcePath = writer.writeFile(program);
-    if (sourcePath.empty()) {
+    // std::cout << "Program extracted successfully.\n";
+    //
+    auto [filepath, formatSuccess] = parser.parseAndSaveProgram(response);
+    if (filepath.empty()) {
       std::cerr << "Error: failed writing test file\n";
       return 1;
     }
-
-    GenerateObject object;
-    std::string objectPath = object.generateObjectFile(sourcePath, commands);
-    if (objectPath.empty()) {
-      std::cerr << "Error: failed generating object file\n";
-      return 1;
-    }
-
+    //
+    // GenerateObject object;
+    // std::string objectPath = object.generateObjectFile(filepath, commands);
+    // if (objectPath.empty()) {
+    //   std::cerr << "Error: failed generating object file\n";
+    //   return 1;
+    // }
   } else {
     std::string res = argv[2];
     if (res.empty()) {
-      std::cout
-          << "Invalid parameter. Please provide a result text from LLM model."
-          << std::endl;
+      std::cout << "Invalid parameter. Please provide a result text from "
+                   "LLM model."
+                << std::endl;
       return 1;
     }
 

@@ -1,5 +1,0 @@
----
-# .clang-format
-SortIncludes: false
-IncludeBlocks: Preserve
-...

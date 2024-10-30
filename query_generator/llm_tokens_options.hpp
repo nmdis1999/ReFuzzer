@@ -3815,18 +3815,6 @@ private:
       "-gno-strict-dwarf", "-gstabs", "-gstabs+", "-gxcoff", "-gxcoff+",
       "-gcoff", "-gcoff+", "-fdebug-prefix-map", "-fdebug-types-section",
 
-      // Architecture
-      "-fPIC", "-fpic", "-fPIE", "-fpie", "-m32", "-m64", "-mx32",
-      "-march=native", "-mtune=native", "-msse", "-msse2", "-msse3", "-mssse3",
-      "-msse4", "-msse4.1", "-msse4.2", "-mavx", "-mavx2", "-mavx512f", "-mfma",
-      "-mno-fma", "-mfma4", "-mno-fma4", "-maes", "-mno-aes", "-mpclmul",
-      "-mno-pclmul", "-mfsgsbase", "-mno-fsgsbase", "-mrdrnd", "-mno-rdrnd",
-      "-mf16c", "-mno-f16c", "-mfentry", "-mno-fentry", "-m3dnow", "-m3dnow-a",
-      "-mabi=sysv", "-mabi=ms", "-masm=intel", "-masm=att", "-mcmodel=small",
-      "-mcmodel=kernel", "-mcmodel=medium", "-mcmodel=large",
-      "-mstack-alignment=4", "-mstack-alignment=8", "-mstack-alignment=16",
-      "-mstackrealign", "-mno-stackrealign",
-
       // Standards
       "-std=c89", "-std=c90", "-std=c99", "-std=c11", "-std=c17", "-std=c2x",
       "-std=gnu89", "-std=gnu90", "-std=gnu99", "-std=gnu11", "-std=gnu17",
@@ -3846,14 +3834,6 @@ private:
       "-mindirect-branch=thunk-inline", "-mindirect-branch=thunk-extern",
       "-mfunction-return=thunk", "-mfunction-return=thunk-inline",
       "-mfunction-return=thunk-extern",
-
-      // Linking
-      "-static", "-shared", "-pipe", "-pthread", "-static-libgcc",
-      "-static-libstdc++", "-rdynamic", "-s", "-no-pie", "-pie",
-      "-nostartfiles", "-nodefaultlibs", "-nostdlib", "-nostdinc",
-      "-nostdinc++", "-fvisibility=default", "-fvisibility=internal",
-      "-fvisibility=hidden", "-fvisibility=protected", "-fwhole-program",
-      "-fno-whole-program",
 
       // Sanitizers and Analysis
       "-fsanitize=address", "-fsanitize=thread", "-fsanitize=undefined",
@@ -3896,6 +3876,33 @@ private:
       "-ftree-switch-conversion", "-ftree-tail-merge", "-ftree-ter",
       "-ftree-vectorizer-verbose=n", "-ftree-vrp"};
 
+  std::vector<std::string> compilerOpt = {
+      "Scalar Optimizations",
+      "Dead Code Elimination",
+      "Constant Folding",
+      "Common Subexpression Elimination",
+      "Loop Optimizations",
+      "Loop Optimizations",
+      "Loop Fusion",
+      "Loop-Invariant Code Motion",
+      "Memory Optimizations",
+      "Memory-to-Register Promotion",
+      "Sparse Conditional Constant Propagation",
+      "Inlining",
+      "Function Inlining",
+      "Inliner Heuristics",
+      "Target-Specific Optimizations",
+      "Instruction Scheduling",
+      "Register Allocation",
+      "Interprocedural Optimizations",
+      "Whole Program Analysis",
+      "Function Specialization",
+      "Profile-Guided Optimizations",
+      "Profile-Guided Instrumentation",
+      "Profile-Guided Optimization",
+      "Vectorization",
+      "Automatic Vectorization",
+      "Loop Vectorization"};
   std::vector<std::string> llvmPasses;
   std::mt19937 rng;
 
