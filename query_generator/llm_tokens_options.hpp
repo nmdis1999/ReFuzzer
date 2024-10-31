@@ -1,17 +1,17 @@
 #ifndef LLM_TOKENS_OPTIONS_HPP
 #define LLM_TOKENS_OPTIONS_HPP
 
-#include <iostream>
-#include <chrono>
-#include <random>
-#include <string>
-#include <vector>
 #include <array>
-#include <memory>
-#include <stdexcept>
+#include <chrono>
 #include <cstdio>
-#include <unordered_set>
+#include <iostream>
+#include <memory>
+#include <random>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 class LLMTokensOption {
 private:
@@ -4003,7 +4003,6 @@ public:
       : rng(std::chrono::steady_clock::now().time_since_epoch().count()) {
     std::cout << "Initializing LLVM passes..." << std::endl;
 
-    // Check if opt exists
     FILE *pipe = popen("which opt", "r");
     if (!pipe) {
       std::cerr << "Error: Cannot check for opt command" << std::endl;

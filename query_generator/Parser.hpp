@@ -1,14 +1,63 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
-#include "CodeGen.hpp"
 #include "TestWriter.hpp"
+#include <functional>
 #include <regex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 class Parser {
 private:
+  static const std::unordered_map<std::string, std::string> &getUnicodeMap() {
+    static const std::unordered_map<std::string, std::string> unicodeMap = {
+        {"\\u0020", " "},  {"\\u0021", "!"}, {"\\u0022", "\""},
+        {"\\u0023", "#"},  {"\\u0024", "$"}, {"\\u0025", "%"},
+        {"\\u0026", "&"},  {"\\u0027", "'"}, {"\\u0028", "("},
+        {"\\u0029", ")"},  {"\\u002A", "*"}, {"\\u002B", "+"},
+        {"\\u002C", ","},  {"\\u002D", "-"}, {"\\u002E", "."},
+        {"\\u002F", "/"},  {"\\u003A", ":"}, {"\\u003B", ";"},
+        {"\\u003C", "<"},  {"\\u003D", "="}, {"\\u003E", ">"},
+        {"\\u003F", "?"},  {"\\u0040", "@"}, {"\\u005B", "["},
+        {"\\u005C", "\\"}, {"\\u005D", "]"}, {"\\u005E", "^"},
+        {"\\u005F", "_"},  {"\\u0060", "`"}, {"\\u007B", "{"},
+        {"\\u007C", "|"},  {"\\u007D", "}"}, {"\\u007E", "~"},
+        {"\\u003c", "<"},  {"\\u003e", ">"},
+        // Add more Unicode mappings as needed
+    };
+    return unicodeMap;
+  }
+
+  static std::string convertUnicodeSequences(const std::string &input) {
+    std::string result = input;
+    const auto &unicodeMap = getUnicodeMap();
+
+    for (const auto &[unicode, replacement] : unicodeMap) {
+      result = std::regex_replace(result, std::regex(unicode), replacement);
+    }
+
+    std::regex unicodeRegex(R"(\\u([0-9a-fA-F]{4}))");
+    std::string processed;
+    std::string::const_iterator searchStart(result.cbegin());
+    std::smatch matches;
+
+    while (
+        std::regex_search(searchStart, result.cend(), matches, unicodeRegex)) {
+      processed += std::string(searchStart, matches[0].first);
+      int codePoint = std::stoi(matches[1].str(), nullptr, 16);
+      if (codePoint < 128) {
+        processed += static_cast<char>(codePoint);
+      } else {
+        processed += matches[0].str();
+      }
+      searchStart = matches[0].second;
+    }
+    processed += std::string(searchStart, result.cend());
+
+    return processed;
+  }
+
   static std::string trim(const std::string &str) {
     size_t first = str.find_first_not_of(" \t\n\r");
     if (first == std::string::npos)
@@ -24,11 +73,10 @@ public:
     if (std::regex_search(response, match, codeBlockRegex)) {
       std::string code = match[1].str();
 
-      code = std::regex_replace(code, std::regex(R"(\\u003c)"), "<");
-      code = std::regex_replace(code, std::regex(R"(\\u003e)"), ">");
+      code = convertUnicodeSequences(code);
 
+      code = std::regex_replace(code, std::regex(R"(\\\\)"), "\\");
       code = std::regex_replace(code, std::regex(R"(\\\n\s*)"), "");
-
       code = std::regex_replace(code, std::regex(R"(\\")"), "\"");
       code = std::regex_replace(code, std::regex(R"(\\n)"), "\n");
 
@@ -41,7 +89,7 @@ public:
     std::regex gccRegex(R"(gcc[^\n]*\n)");
     std::smatch match;
     if (std::regex_search(response, match, gccRegex)) {
-      return trim(match[0].str());
+      return trim(convertUnicodeSequences(match[0].str()));
     }
     return "";
   }
@@ -50,7 +98,7 @@ public:
     std::regex runtimeRegex(R"(\./[^\n]*\n)");
     std::smatch match;
     if (std::regex_search(response, match, runtimeRegex)) {
-      return trim(match[0].str());
+      return trim(convertUnicodeSequences(match[0].str()));
     }
     return "";
   }
@@ -90,7 +138,7 @@ public:
     result.gccCommand = getGccCommand(response);
     result.runtimeCommand = getRuntimeCommand(response);
 
-    std::string cleanResponse = response;
+    std::string cleanResponse = convertUnicodeSequences(response);
     cleanResponse = std::regex_replace(cleanResponse,
                                        std::regex(R"(```c\n[\s\S]*?```)"), "");
     cleanResponse =

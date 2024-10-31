@@ -103,7 +103,7 @@ private:
 
 public:
   std::string generateObjectFile(const std::string &filename,
-                                 const std::vector<std::string> &commands) {
+                                 const std::string gccCmd) {
     if (filename.empty()) {
       logError("generateObjectFile", "Source file path is empty",
                "empty_source");
@@ -116,10 +116,10 @@ public:
 
     std::string objectFile = generateObjectFilename(filename);
 
-    std::string gccCmd = "gcc " + filename + " -o " + objectFile;
+    std::string finalGccCmd = "gcc " + filename + " -o " + objectFile;
 
     std::string commandOutput;
-    if (!executeCommand(gccCmd, commandOutput, filename)) {
+    if (!executeCommand(finalGccCmd, commandOutput, filename)) {
       if (!commandOutput.empty()) {
         logError("gcc compilation", commandOutput, filename);
       }

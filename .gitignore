@@ -1,5 +1,8 @@
 cpp_files
 .clang_format
+test 
+object 
+log
 test_parser
 __pycache__
 ollama-hpp

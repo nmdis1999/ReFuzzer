@@ -63,7 +63,9 @@ int main(int argc, char *argv[]) {
         ", and exercises this idea in C: " + randomPL +
         ". To recap the code contains these: " + optLevel + ", " +
         randomCompilerOpt + " and " + randomCompilerParts + " and " + randomPL +
-        " the command to compile code should use ";
+        " make sure that the program has proper symbols instead of unicodes in "
+        "your response."
+        " and the program MUST be a C program. ";
 
     std::cout << "prompt" << prompt << std::endl;
     QueryGenerator qGenerate;
@@ -73,26 +75,24 @@ int main(int argc, char *argv[]) {
     Parser parser;
     std::string program = parser.getCProgram(response);
     std::cout << "============================" << std::endl;
-    std::cout << "Response: " << response << std::endl;
+    std::cout << "Program: \n" << program << std::endl;
     std::cout << "============================" << std::endl;
 
-    // auto compile_cmd = parser.getGccCommand(response);
-    // auto runtime_cmd = parser.getRuntimeCommand(response);
-    //
-    // std::cout << "Program extracted successfully.\n";
-    //
+    auto compile_cmd = parser.getGccCommand(response);
+    auto runtime_cmd = parser.getRuntimeCommand(response);
+
     auto [filepath, formatSuccess] = parser.parseAndSaveProgram(response);
     if (filepath.empty()) {
       std::cerr << "Error: failed writing test file\n";
       return 1;
     }
     //
-    // GenerateObject object;
-    // std::string objectPath = object.generateObjectFile(filepath, commands);
-    // if (objectPath.empty()) {
-    //   std::cerr << "Error: failed generating object file\n";
-    //   return 1;
-    // }
+    GenerateObject object;
+    std::string objectPath = object.generateObjectFile(filepath, compile_cmd);
+    if (objectPath.empty()) {
+      std::cerr << "Error: failed generating object file\n";
+      return 1;
+    }
   } else {
     std::string res = argv[2];
     if (res.empty()) {
@@ -101,13 +101,6 @@ int main(int argc, char *argv[]) {
                 << std::endl;
       return 1;
     }
-
-    // std::string callLine = parser.getArgsInput(res);
-    // std::string argsType = parser.getTypes(res, callLine);
-    //
-    // std::cout << "argsType: " << argsType << std::endl;
-    // std::cout << "callLine: " << callLine << std::endl;
-    // std::cout << "program: " << program << std::endl;
   }
 
   return 0;
