@@ -64,12 +64,7 @@ public:
       }
       std::string fullPath = "../test/" + filename;
 
-      if (fileExists(fullPath)) {
-        std::cerr << "File '" << fullPath << "' already exists" << std::endl;
-        return "";
-      }
-
-      std::ofstream file(fullPath);
+      std::ofstream file(fullPath, std::ios::out | std::ios::trunc);
       if (!file.is_open()) {
         std::cerr << "Failed to open file '" << fullPath << "'" << std::endl;
         return "";
@@ -95,8 +90,13 @@ public:
     }
   }
 
-  std::string writeFile(const std::string &content) {
-    return writeFile(generateFilename("test_file_"), content);
+  std::string writeFile(const std::string &content, std::string &filename) {
+    if (filename.empty())
+      filename = generateFilename("test_file_");
+    else
+      filename.append(".c");
+    std::cout << "Filename in writeFile api " << filename << std::endl;
+    return writeFile(filename, content);
   }
 };
 

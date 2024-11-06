@@ -12,19 +12,27 @@ class Parser {
 private:
   static const std::unordered_map<std::string, std::string> &getUnicodeMap() {
     static const std::unordered_map<std::string, std::string> unicodeMap = {
-        {"\\u0020", " "},  {"\\u0021", "!"}, {"\\u0022", "\""},
-        {"\\u0023", "#"},  {"\\u0024", "$"}, {"\\u0025", "%"},
-        {"\\u0026", "&"},  {"\\u0027", "'"}, {"\\u0028", "("},
-        {"\\u0029", ")"},  {"\\u002A", "*"}, {"\\u002B", "+"},
-        {"\\u002C", ","},  {"\\u002D", "-"}, {"\\u002E", "."},
-        {"\\u002F", "/"},  {"\\u003A", ":"}, {"\\u003B", ";"},
-        {"\\u003C", "<"},  {"\\u003D", "="}, {"\\u003E", ">"},
-        {"\\u003F", "?"},  {"\\u0040", "@"}, {"\\u005B", "["},
-        {"\\u005C", "\\"}, {"\\u005D", "]"}, {"\\u005E", "^"},
-        {"\\u005F", "_"},  {"\\u0060", "`"}, {"\\u007B", "{"},
-        {"\\u007C", "|"},  {"\\u007D", "}"}, {"\\u007E", "~"},
-        {"\\u003c", "<"},  {"\\u003e", ">"},
-        // Add more Unicode mappings as needed
+        {"\\u0020", " "},         {"\\u0021", "!"},
+        {"\\u0022", "\""},        {"\\u0023", "#"},
+        {"\\u0024", "$"},         {"\\u0025", "%"},
+        {"\\u0026", "&"},         {"\\u0027", "'"},
+        {"\\u0028", "("},         {"\\u0029", ")"},
+        {"\\u002A", "*"},         {"\\u002B", "+"},
+        {"\\u002C", ","},         {"\\u002D", "-"},
+        {"\\u002E", "."},         {"\\u002F", "/"},
+        {"\\u003A", ":"},         {"\\u003B", ";"},
+        {"\\u003C", "<"},         {"\\u003D", "="},
+        {"\\u003E", ">"},         {"\\u003F", "?"},
+        {"\\u0040", "@"},         {"\\u005B", "["},
+        {"\\u005C", "\\"},        {"\\u005D", "]"},
+        {"\\u005E", "^"},         {"\\u005F", "_"},
+        {"\\u0060", "`"},         {"\\u007B", "{"},
+        {"\\u007C", "|"},         {"\\u007D", "}"},
+        {"\\u007E", "~"},         {"u003c", "<"},
+        {"u003e", ">"},           {"\\u003c", "<"},
+        {"\\u003e", ">"},         {"&", "&"},
+        {"&amp;", "&"},           {"u0026u0026", "&&"},
+        {"\\u0026\\u0026", "&&"},
     };
     return unicodeMap;
   }
@@ -34,7 +42,11 @@ private:
     const auto &unicodeMap = getUnicodeMap();
 
     for (const auto &[unicode, replacement] : unicodeMap) {
-      result = std::regex_replace(result, std::regex(unicode), replacement);
+      size_t pos = 0;
+      while ((pos = result.find(unicode, pos)) != std::string::npos) {
+        result.replace(pos, unicode.length(), replacement);
+        pos += replacement.length();
+      }
     }
 
     std::regex unicodeRegex(R"(\\u([0-9a-fA-F]{4}))");
@@ -54,6 +66,10 @@ private:
       searchStart = matches[0].second;
     }
     processed += std::string(searchStart, result.cend());
+
+    // Final cleanup for HTML entities
+    processed = std::regex_replace(processed, std::regex("&amp;"), "&");
+    processed = std::regex_replace(processed, std::regex("\\\\n"), "\n");
 
     return processed;
   }
@@ -78,7 +94,6 @@ public:
       code = std::regex_replace(code, std::regex(R"(\\\\)"), "\\");
       code = std::regex_replace(code, std::regex(R"(\\\n\s*)"), "");
       code = std::regex_replace(code, std::regex(R"(\\")"), "\"");
-      code = std::regex_replace(code, std::regex(R"(\\n)"), "\n");
 
       return trim(code);
     }
@@ -113,15 +128,20 @@ public:
   };
 
   static std::pair<std::string, bool>
-  parseAndSaveProgram(const std::string &response) {
+  parseAndSaveProgram(const std::string &response,
+                      const std::string &filename = "") {
     std::string extractedProgram = getCProgram(response);
     if (extractedProgram.empty()) {
+      std::cerr << "Failed to extract file" << std::endl;
       return {"", false};
     }
 
     TestWriter writer;
-    std::string filepath = writer.writeFile(extractedProgram);
+    std::string finalFilename = filename;
+    std::string filepath = writer.writeFile(extractedProgram, finalFilename);
     if (filepath.empty()) {
+      std::cerr << "Something went wrong while writing code to filename "
+                << filepath << std::endl;
       return {"", false};
     }
 

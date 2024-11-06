@@ -2,9 +2,12 @@
 #define QUERY_GENERATOR_HPP
 
 #include <curl/curl.h>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
-#include <string>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 class QueryGenerator {
 private:
@@ -18,17 +21,51 @@ private:
     return size * nmemb;
   }
 
-  std::string format_response(const std::string &response) {
-    std::string formatted = response;
-    size_t pos = 0;
-    while ((pos = formatted.find("\\n", pos)) != std::string::npos) {
-      formatted.replace(pos, 2, "\n");
-      pos += 1;
+  std::string escapeJsonString(const std::string &input) {
+    std::string output;
+    output.reserve(input.length());
+
+    for (char ch : input) {
+      switch (ch) {
+      case '"':
+        output += "\\\"";
+        break;
+      case '\\':
+        output += "\\\\";
+        break;
+      case '\b':
+        output += "\\b";
+        break;
+      case '\f':
+        output += "\\f";
+        break;
+      case '\n':
+        output += "\\n";
+        break;
+      case '\r':
+        output += "\\r";
+        break;
+      case '\t':
+        output += "\\t";
+        break;
+      default:
+        if (static_cast<unsigned char>(ch) < 0x20) {
+          char buf[8];
+          snprintf(buf, sizeof(buf), "\\u%04x", ch);
+          output += buf;
+        } else {
+          output += ch;
+        }
+      }
     }
-    return formatted;
+    return output;
   }
 
   std::string extract_response(const std::string &json_response) {
+    std::cout << "**********Raw JSON response: ********" << std::endl;
+    std::cout << json_response << std::endl;
+    std::cout << "************************************" << std::endl;
+
     size_t response_start = json_response.find("\"response\":\"");
     if (response_start == std::string::npos) {
       return "Could not find response field in JSON";
@@ -43,7 +80,41 @@ private:
 
     std::string extracted_response =
         json_response.substr(response_start, response_end - response_start);
-    return format_response(extracted_response);
+
+    // Unescape the response
+    std::string unescaped;
+    size_t pos = 0;
+    while (pos < extracted_response.length()) {
+      if (extracted_response[pos] == '\\') {
+        if (pos + 1 < extracted_response.length()) {
+          switch (extracted_response[pos + 1]) {
+          case 'n':
+            unescaped += '\n';
+            break;
+          case 'r':
+            unescaped += '\r';
+            break;
+          case 't':
+            unescaped += '\t';
+            break;
+          case '\"':
+            unescaped += '\"';
+            break;
+          case '\\':
+            unescaped += '\\';
+            break;
+          default:
+            unescaped += extracted_response[pos + 1];
+          }
+          pos += 2;
+        } else {
+          unescaped += extracted_response[pos++];
+        }
+      } else {
+        unescaped += extracted_response[pos++];
+      }
+    }
+    return unescaped;
   }
 
 public:
@@ -93,17 +164,62 @@ public:
     }
   }
 
+  std::string generatePromptWithFiles(const std::string &basePrompt,
+                                      const std::string &programPath,
+                                      const std::string &logPath = "") {
+    try {
+      if (!std::filesystem::exists(programPath)) {
+        throw std::runtime_error("Program file does not exist: " + programPath);
+      }
+
+      std::ifstream progFile(programPath);
+      if (!progFile.is_open()) {
+        throw std::runtime_error("Could not open program file: " + programPath);
+      }
+      std::stringstream progBuffer;
+      progBuffer << progFile.rdbuf();
+      std::string programContent = progBuffer.str();
+
+      std::string fullPrompt = basePrompt;
+      fullPrompt += "\nProgram Content:\n```c\n" + programContent + "\n```\n";
+
+      if (!logPath.empty()) {
+        if (!std::filesystem::exists(logPath)) {
+          throw std::runtime_error("Log file does not exist: " + logPath);
+        }
+        std::ifstream logFile(logPath);
+        if (!logFile.is_open()) {
+          throw std::runtime_error("Could not open log file: " + logPath);
+        }
+        std::stringstream logBuffer;
+        logBuffer << logFile.rdbuf();
+        std::string logContent = logBuffer.str();
+        fullPrompt += "\nCompilation Log:\n```\n" + logContent + "\n```\n";
+      }
+
+      return fullPrompt;
+    } catch (const std::exception &e) {
+      std::cerr << "Error generating prompt: " << e.what() << std::endl;
+      return "";
+    }
+  }
+
   std::string askModel(const std::string &prompt) {
     try {
       if (!curl) {
         throw std::runtime_error("CURL not initialized");
       }
 
-      std::string response_string;
+      std::string escaped_prompt = escapeJsonString(prompt);
       std::string json_body = "{\"model\":\"" + OLLAMA_MODEL +
-                              "\", \"prompt\":\"" + prompt +
-                              "\", \"stream\":false}";
+                              "\",\"prompt\":\"" + escaped_prompt +
+                              "\",\"stream\":false}";
 
+      // Debug: Print the JSON body
+      std::cout << "Sending JSON body:" << std::endl;
+      std::cout << json_body << std::endl;
+
+      std::string response_string;
       std::string url = base_url + "/api/generate";
       curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());

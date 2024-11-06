@@ -86,7 +86,6 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: failed writing test file\n";
       return 1;
     }
-    //
     GenerateObject object;
     std::string objectPath = object.generateObjectFile(filepath, compile_cmd);
     if (objectPath.empty()) {

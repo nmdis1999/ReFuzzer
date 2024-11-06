@@ -1,7 +1,6 @@
 #ifndef OBJECT_GENERATOR
 #define OBJECT_GENERATOR
 
-#include "TestWriter.hpp"
 #include <array>
 #include <chrono>
 #include <cstdlib>
