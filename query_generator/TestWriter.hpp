@@ -1,18 +1,19 @@
 #ifndef TEST_WRITER
 #define TEST_WRITER
 
-#include <iostream>
-#include <string>
 #include <chrono>
+#include <cstring>
 #include <ctime>
-#include <fstream>
-#include <sstream>
-#include <sys/stat.h>
 #include <errno.h>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <sys/stat.h>
 
 class TestWriter {
-private:
+public:
   bool directoryExists(const std::string &path) {
     struct stat info;
     if (stat(path.c_str(), &info) != 0) {
