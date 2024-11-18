@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
         "optimization level, please analyze and correct the program to resolve "
         "the compilation errors.";
 
-    QueryGenerator qGenerate;
+    QueryGenerator qGenerate("llama3.2");
     qGenerate.loadModel();
 
     std::string fullPrompt =
@@ -74,7 +74,6 @@ int main(int argc, char *argv[]) {
                 << std::endl;
       continue;
     }
-    return 0;
   }
   return 0;
 }

@@ -11,7 +11,7 @@
 
 class QueryGenerator {
 private:
-  const std::string OLLAMA_MODEL = "llama3.2";
+  const std::string OLLAMA_MODEL;
   const std::string base_url;
   CURL *curl;
 
@@ -118,8 +118,10 @@ private:
   }
 
 public:
-  QueryGenerator(const std::string &host = "localhost", int port = 11434)
-      : base_url("http://" + host + ":" + std::to_string(port)) {
+  QueryGenerator(const std::string &model_name,
+                 const std::string &host = "localhost", int port = 11434)
+      : OLLAMA_MODEL(model_name),
+        base_url("http://" + host + ":" + std::to_string(port)) {
     curl_global_init(CURL_GLOBAL_ALL);
     curl = curl_easy_init();
     if (!curl) {

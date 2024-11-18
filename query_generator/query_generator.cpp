@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
         " and the program MUST be a C program. ";
 
     std::cout << "prompt" << prompt << std::endl;
-    QueryGenerator qGenerate;
+    QueryGenerator qGenerate(llama2);
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
     // TODO: write constructor for the class Parser

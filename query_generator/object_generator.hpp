@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <sys/stat.h>
@@ -48,7 +49,12 @@ private:
 
     std::string logFile = "../log/" + baseName + ".log";
 
-    std::ofstream log(logFile, std::ios_base::app);
+    std::ios_base::openmode mode = std::ios_base::out;
+    if (!std::filesystem::exists(logFile)) {
+      mode |= std::ios_base::app;
+    }
+
+    std::ofstream log(logFile, mode);
     if (log.is_open()) {
       log << "[" << getTimestamp() << "] Operation: " << operation << "\n";
       log << "Error: " << error << "\n";
@@ -78,11 +84,22 @@ private:
     return "../object/" + baseName + ".o";
   }
 
+  std::string getLogFilePath(const std::string &sourceFile) {
+    size_t lastSlash = sourceFile.find_last_of("/\\");
+    std::string filename = (lastSlash != std::string::npos)
+                               ? sourceFile.substr(lastSlash + 1)
+                               : sourceFile;
+
+    size_t lastDot = filename.find_last_of('.');
+    std::string baseName =
+        (lastDot != std::string::npos) ? filename.substr(0, lastDot) : filename;
+    return "../log/" + baseName + ".log";
+  }
+
   bool executeCommand(const std::string &command, std::string &output,
                       const std::string &sourceFile) {
     std::array<char, 128> buffer;
     output.clear();
-
     std::string cmd = command + " 2>&1";
     FILE *pipe = popen(cmd.c_str(), "r");
 
@@ -114,6 +131,7 @@ public:
     }
 
     std::string objectFile = generateObjectFilename(filename);
+    std::string logFile = getLogFilePath(filename);
 
     std::string finalGccCmd = "gcc " + filename + " -o " + objectFile;
 
@@ -132,6 +150,15 @@ public:
       logError("generateObjectFile",
                "Object file was not created: " + objectFile, filename);
       return "";
+    }
+
+    if (std::filesystem::exists(logFile)) {
+      try {
+        std::filesystem::remove(logFile);
+      } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "Warning: Failed to remove log file: " << e.what()
+                  << std::endl;
+      }
     }
 
     std::cout << "Successfully generated object file: " << objectFile
