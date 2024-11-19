@@ -1,5 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Werror
+LDFLAGS = -lcurl  # Add curl library linking
 
 QUERY_GEN_DIR = query_generator
 MODEL2_DIR = model2
@@ -18,13 +19,13 @@ RECOMPILE_SOURCES = $(MODEL2_DIR)/recompile.cpp
 all: $(QUERY_GEN) run_generator $(RECOMPILE)
 
 $(QUERY_GEN): $(QUERY_GEN_SOURCES) $(QUERY_GEN_HEADERS)
-	$(CXX) $(CXXFLAGS) $(QUERY_GEN_SOURCES) -o $(QUERY_GEN)
+	$(CXX) $(CXXFLAGS) -I$(QUERY_GEN_DIR) $(QUERY_GEN_SOURCES) $(LDFLAGS) -o $(QUERY_GEN)
 
 run_generator: $(QUERY_GEN)
 	cd $(QUERY_GEN_DIR) && python3 generatePrograms.py $(NUM_PROGRAMS)
 
 $(RECOMPILE): $(RECOMPILE_SOURCES)
-	$(CXX) $(CXXFLAGS) $(RECOMPILE_SOURCES) -o $(RECOMPILE)
+	$(CXX) $(CXXFLAGS) -I$(MODEL2_DIR) $(RECOMPILE_SOURCES) $(LDFLAGS) -o $(RECOMPILE)
 
 clean:
 	rm -f $(QUERY_GEN) $(RECOMPILE)

@@ -3,7 +3,7 @@
 This is in development stage.
 
 ## Example:
-``` g++ -I. query_generator.cpp -o query_generator -std=c++14 -lcurl```
+``` make ```
 
 **Prompt**:
 
