@@ -5,9 +5,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+
+using json = nlohmann::json;
 
 class QueryGenerator {
 private:
@@ -22,99 +25,7 @@ private:
   }
 
   std::string escapeJsonString(const std::string &input) {
-    std::string output;
-    output.reserve(input.length());
-
-    for (char ch : input) {
-      switch (ch) {
-      case '"':
-        output += "\\\"";
-        break;
-      case '\\':
-        output += "\\\\";
-        break;
-      case '\b':
-        output += "\\b";
-        break;
-      case '\f':
-        output += "\\f";
-        break;
-      case '\n':
-        output += "\\n";
-        break;
-      case '\r':
-        output += "\\r";
-        break;
-      case '\t':
-        output += "\\t";
-        break;
-      default:
-        if (static_cast<unsigned char>(ch) < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", ch);
-          output += buf;
-        } else {
-          output += ch;
-        }
-      }
-    }
-    return output;
-  }
-
-  std::string extract_response(const std::string &json_response) {
-    std::cout << "**********Raw JSON response: ********" << std::endl;
-    std::cout << json_response << std::endl;
-    std::cout << "************************************" << std::endl;
-
-    size_t response_start = json_response.find("\"response\":\"");
-    if (response_start == std::string::npos) {
-      return "Could not find response field in JSON";
-    }
-
-    response_start += 11; // Length of "response":"
-    size_t response_end = json_response.find("\",\"done\":", response_start);
-
-    if (response_end == std::string::npos) {
-      return "Malformed JSON response";
-    }
-
-    std::string extracted_response =
-        json_response.substr(response_start, response_end - response_start);
-
-    // Unescape the response
-    std::string unescaped;
-    size_t pos = 0;
-    while (pos < extracted_response.length()) {
-      if (extracted_response[pos] == '\\') {
-        if (pos + 1 < extracted_response.length()) {
-          switch (extracted_response[pos + 1]) {
-          case 'n':
-            unescaped += '\n';
-            break;
-          case 'r':
-            unescaped += '\r';
-            break;
-          case 't':
-            unescaped += '\t';
-            break;
-          case '\"':
-            unescaped += '\"';
-            break;
-          case '\\':
-            unescaped += '\\';
-            break;
-          default:
-            unescaped += extracted_response[pos + 1];
-          }
-          pos += 2;
-        } else {
-          unescaped += extracted_response[pos++];
-        }
-      } else {
-        unescaped += extracted_response[pos++];
-      }
-    }
-    return unescaped;
+    return json(input).dump().substr(1, std::string::npos - 2);
   }
 
 public:
@@ -138,16 +49,19 @@ public:
 
   void loadModel() {
     try {
-      std::string json_body = "{\"model\":\"" + OLLAMA_MODEL + "\"}";
-      std::string response_string;
+      json request = {{"model", OLLAMA_MODEL}};
 
+      std::string response_string;
       std::string url = base_url + "/api/pull";
-      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_body.length());
 
       struct curl_slist *headers = NULL;
       headers = curl_slist_append(headers, "Content-Type: application/json");
+
+      std::string request_body = request.dump();
+
+      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, request_body.length());
       curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
@@ -212,23 +126,22 @@ public:
         throw std::runtime_error("CURL not initialized");
       }
 
-      std::string escaped_prompt = escapeJsonString(prompt);
-      std::string json_body = "{\"model\":\"" + OLLAMA_MODEL +
-                              "\",\"prompt\":\"" + escaped_prompt +
-                              "\",\"stream\":false}";
-
-      // Debug: Print the JSON body
-      std::cout << "Sending JSON body:" << std::endl;
-      std::cout << json_body << std::endl;
+      json request = {
+          {"model", OLLAMA_MODEL}, {"prompt", prompt}, {"stream", false}};
 
       std::string response_string;
       std::string url = base_url + "/api/generate";
-      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_body.length());
+      std::string request_body = request.dump();
+
+      std::cout << "Sending JSON request:" << std::endl;
+      std::cout << request_body << std::endl;
 
       struct curl_slist *headers = NULL;
       headers = curl_slist_append(headers, "Content-Type: application/json");
+
+      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, request_body.length());
       curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
@@ -241,7 +154,19 @@ public:
                                  curl_easy_strerror(res));
       }
 
-      return extract_response(response_string);
+      json response_json = json::parse(response_string);
+      std::cout << "Raw JSON response:" << std::endl;
+      std::cout << response_json.dump(2) << std::endl;
+
+      if (response_json.contains("response")) {
+        return response_json["response"].get<std::string>();
+      } else {
+        throw std::runtime_error("Response doesn't contain 'response' field");
+      }
+
+    } catch (const json::parse_error &e) {
+      std::cerr << "JSON parsing error: " << e.what() << std::endl;
+      return "";
     } catch (const std::exception &e) {
       std::cerr << "Failed to get response: " << e.what() << std::endl;
       return "";

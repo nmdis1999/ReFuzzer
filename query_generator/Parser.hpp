@@ -67,7 +67,6 @@ private:
     }
     processed += std::string(searchStart, result.cend());
 
-    // Final cleanup for HTML entities
     processed = std::regex_replace(processed, std::regex("&amp;"), "&");
     processed = std::regex_replace(processed, std::regex("\\\\n"), "\n");
 
@@ -83,23 +82,52 @@ private:
   }
 
 public:
-  static std::string getCProgram(const std::string &response) {
-    std::regex codeBlockRegex(R"(```c\n([\s\S]*?)```)");
-    std::smatch match;
-    if (std::regex_search(response, match, codeBlockRegex)) {
-      std::string code = match[1].str();
+  static std::string getCProgram(const std::string &raw_response) {
+    std::regex jsonResponseRegex(
+        "\"response\":\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"");
+    std::smatch jsonMatch;
+    std::string response;
 
-      code = convertUnicodeSequences(code);
+    try {
+      if (std::regex_search(raw_response, jsonMatch, jsonResponseRegex)) {
+        response = jsonMatch[1].str();
+        response = std::regex_replace(response, std::regex("\\\\n"), "\n");
+        response = std::regex_replace(response, std::regex("\\\\\""), "\"");
+      } else {
+        response = raw_response;
+      }
 
-      code = std::regex_replace(code, std::regex(R"(\\\\)"), "\\");
-      code = std::regex_replace(code, std::regex(R"(\\\n\s*)"), "");
-      code = std::regex_replace(code, std::regex(R"(\\")"), "\"");
+      std::regex codeBlockRegex("```c\\n([\\s\\S]*?)```");
+      std::smatch match;
 
-      return trim(code);
+      if (std::regex_search(response, match, codeBlockRegex)) {
+        std::string code = match[1].str();
+        code = convertUnicodeSequences(code);
+        return trim(code);
+      }
+
+      std::regex altCodeBlockRegex("```\\n([\\s\\S]*?)```");
+      if (std::regex_search(response, match, altCodeBlockRegex)) {
+        std::string code = match[1].str();
+        code = convertUnicodeSequences(code);
+        return trim(code);
+      }
+    } catch (const std::regex_error &e) {
+      std::cerr << "Regex error: " << e.what() << "\n";
+      size_t start = response.find("```c\n");
+      if (start != std::string::npos) {
+        start += 4;
+        size_t end = response.find("\n```", start);
+        if (end != std::string::npos) {
+          std::string code = response.substr(start, end - start);
+          code = convertUnicodeSequences(code);
+          return trim(code);
+        }
+      }
     }
+
     return "";
   }
-
   static std::string getGccCommand(const std::string &response) {
     std::regex gccRegex(R"(gcc[^\n]*\n)");
     std::smatch match;

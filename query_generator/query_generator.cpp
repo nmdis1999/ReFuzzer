@@ -3,11 +3,11 @@
 #include <string>
 // NOLINTNEXTLINE(build/include_subdir)
 #include "Parser.hpp"
+#include "PromptWriter.hpp"
 #include "TestWriter.hpp"
 #include "llm_tokens_options.hpp"
 #include "object_generator.hpp"
 #include "query_generator.hpp"
-
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
     std::cout << "Please provide single parameter (0, 1, 2)\n";
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
         " and the program MUST be a C program. ";
 
     std::cout << "prompt" << prompt << std::endl;
-    QueryGenerator qGenerate(llama2);
+    QueryGenerator qGenerate("llama2");
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
     // TODO: write constructor for the class Parser
@@ -84,6 +84,15 @@ int main(int argc, char *argv[]) {
     auto [filepath, formatSuccess] = parser.parseAndSaveProgram(response);
     if (filepath.empty()) {
       std::cerr << "Error: failed writing test file\n";
+      return 1;
+    }
+    PromptWriter promptWriter;
+    auto [promptPath, promptSuccess] =
+        promptWriter.savePrompt(prompt, filepath, optLevel, randomCompilerOpt,
+                                randomCompilerParts, randomPL);
+
+    if (!promptSuccess) {
+      std::cerr << "Error: failed saving prompt file\n";
       return 1;
     }
     GenerateObject object;
