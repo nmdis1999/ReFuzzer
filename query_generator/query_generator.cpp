@@ -101,6 +101,9 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: failed generating object file\n";
       return 1;
     }
+    std::cout << "Running sanitizer checks on generated object files..." << std::endl;
+    SanitizerProcessor sanitizer;
+    sanitizer.processObjectFiles();
   } else {
     std::string res = argv[2];
     if (res.empty()) {
