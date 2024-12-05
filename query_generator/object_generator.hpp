@@ -11,6 +11,7 @@
 
 class GenerateObject {
 private:
+  std::string objectFile;
   bool createDirectory(const std::string &dir) {
     struct stat info;
     if (stat(dir.c_str(), &info) != 0) {
@@ -118,6 +119,10 @@ private:
   }
 
 public:
+  std::string getObjectFileName() const {
+    return std::filesystem::path(objectFile).filename().string();
+  }
+
   std::string generateObjectFile(const std::string &filename,
                                  const std::string gccCmd) {
     if (filename.empty()) {

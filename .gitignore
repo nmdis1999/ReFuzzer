@@ -1,9 +1,10 @@
+sanitizer_log
 prompt
 analysis
 cpp_files
 .clang_format
-test 
-object 
+test
+object
 log
 test_parser
 __pycache__

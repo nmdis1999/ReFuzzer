@@ -8,6 +8,8 @@
 #include "llm_tokens_options.hpp"
 #include "object_generator.hpp"
 #include "query_generator.hpp"
+#include "sanitizer_processor.hpp"
+
 int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 2) {
     std::cout << "Please provide single parameter (0, 1, 2)\n";
@@ -99,11 +101,15 @@ int main(int argc, char *argv[]) {
     std::string objectPath = object.generateObjectFile(filepath, compile_cmd);
     if (objectPath.empty()) {
       std::cerr << "Error: failed generating object file\n";
-      return 1;
     }
     std::cout << "Running sanitizer checks on generated object files..." << std::endl;
+  } else if (parameter == 2) {
     SanitizerProcessor sanitizer;
-    sanitizer.processObjectFiles();
+    for (const auto& entry : fs::directory_iterator("../object")) {
+        if (entry.path().extension() == ".o") {
+            sanitizer.processSourceFile(entry.path().string());
+        }
+    }
   } else {
     std::string res = argv[2];
     if (res.empty()) {
