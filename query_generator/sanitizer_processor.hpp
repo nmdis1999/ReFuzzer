@@ -76,33 +76,37 @@ private:
                std::cerr << "Failed to create log directory" << std::endl;
                return;
            }
-           std::string logFile = "../sanitizer_log/" + baseFilename + "_" + sanitizerName + ".log";
-           std::ofstream log(logFile);
+           std::string logFile = "../sanitizer_log/" + baseFilename + ".log";
+           std::ofstream log(logFile, std::ios::app);  // Open in append mode
            if (!log.is_open()) {
                std::cerr << "Failed to open log file: " << logFile << std::endl;
                return;
            }
+           log << "\n=== New Sanitizer Violation Report ===\n";  // Add separator
            log << "Object File: " << objectFile << "\n";
            log << "Sanitizer: " << sanitizerName << "\n";
            log << "Sanitizer Violation:\n" << error << "\n";
+           log << "=====================================\n";  // Add separator
            log.close();
-           std::cout << "Sanitizer violation log written to: " << logFile << std::endl;
+           std::cout << "Sanitizer violation log appended to: " << logFile << std::endl;
        } else {
            if (!createDirectory("../sanitizer_crash")) {
                std::cerr << "Failed to create crash log directory" << std::endl;
                return;
            }
            std::string crashLogFile = "../sanitizer_crash/" + baseFilename + ".log";
-           std::ofstream crashLog(crashLogFile);
+           std::ofstream crashLog(crashLogFile, std::ios::app);  // Open in append mode
            if (!crashLog.is_open()) {
                std::cerr << "Failed to open crash log file: " << crashLogFile << std::endl;
                return;
            }
+           crashLog << "\n=== New Sanitizer Crash Report ===\n";  // Add separator
            crashLog << "Object File: " << objectFile << "\n";
            crashLog << "Sanitizer: " << sanitizerName << "\n";
            crashLog << "Sanitizer Error Output:\n" << error << "\n";
+           crashLog << "================================\n";  // Add separator
            crashLog.close();
-           std::cout << "Sanitizer crash log written to: " << crashLogFile << std::endl;
+           std::cout << "Sanitizer crash log appended to: " << crashLogFile << std::endl;
        }
    }
 

@@ -33,20 +33,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (parameter == 0) {
-    std::string promptStart =
-        "Generate a concise C file without unnecessary includes, but with "
-        "output. "
-        "The C file should be a standard program, but with a twist: "
-        "it replaces all constants in the main function with argument "
-        "assignments, adds required includes.";
-    promptStart += "Example ```C\n#include <stdio.h>\n#include <stdlib.h>\nint "
-                   "main(int argc, char *argv[]) {\n"
-                   "  if (argc != 2) {\n    printf(\"Usage: %s <value>\\n\", "
-                   "argv[0]);\n    return 1;\n  }\n  int x = atoi(argv[1]);\n"
-                   "  return x - 4;\n}```\nDo you think you can do that?";
-    std::cout << promptStart << std::endl;
-  } else if (parameter == 1) {
+  if (parameter == 1) {
     LLMTokensOption llmIndexedTokens;
 
     std::string randomCompilerOpt = llmIndexedTokens.getRandomCompilerOpt();
@@ -56,8 +43,8 @@ int main(int argc, char *argv[]) {
     std::string optLevel = llmIndexedTokens.getRandomOptLevel();
     std::string prompt =
         "Coding task: give me a program in C "
-        "with all includes. Input is "
-        "taken via argv only. "
+        "with all includes. No input is "
+        "taken."
         "Please return a program (C program) and a concrete example. "
         "The C program will be with code triggering with " +
         optLevel + " and program will cover " + randomCompilerOpt +
