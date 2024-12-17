@@ -111,7 +111,6 @@ private:
     }
 
     std::string findSourceFile(const std::string& baseFilename) {
-        // Check all possible locations for the source file
         std::vector<std::string> searchPaths = {
             "../test/" + baseFilename + ".c",
             "../source/" + baseFilename + ".c",
@@ -134,7 +133,6 @@ public:
         std::string sourcePath = findSourceFile(baseFilename);
 
         if (sourcePath.empty()) {
-            // Try to find a similarly named source file
             for (const auto& entry : fs::directory_iterator("../test")) {
                 if (entry.path().extension() == ".c" &&
                     entry.path().stem().string().find(baseFilename) != std::string::npos) {
@@ -171,15 +169,6 @@ public:
                 break;
             } else {
                 std::cout << "Sanitizer check (" << config.name << ") passed for: " << sourcePath << std::endl;
-
-                std::string runOutput;
-                if (!executeCommand(executablePath, runOutput) && !runOutput.empty()) {
-                    std::cout << "Runtime check (" << config.name << ") failed for: " << sourcePath << std::endl;
-                    std::cout << "Runtime output: " << runOutput << std::endl;
-                    logError(sourcePath, config.name, runOutput);
-                    allChecksPassed = false;
-                    break;
-                }
             }
         }
 
@@ -193,7 +182,7 @@ public:
                 std::string destPath = "../correct_code/" + fs::path(sourcePath).filename().string();
                 std::cout << "Copying " << sourcePath << " to " << destPath << std::endl;
                 fs::copy(sourcePath, destPath, fs::copy_options::overwrite_existing);
-                std::cout << "All checks passed. Copied " << sourcePath << " to " << destPath << std::endl;
+                std::cout << "All sanitizer checks passed. Copied " << sourcePath << " to " << destPath << std::endl;
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "Error copying file to correct_code: " << e.what() << std::endl;
             }

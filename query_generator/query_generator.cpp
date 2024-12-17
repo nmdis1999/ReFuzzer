@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
-// NOLINTNEXTLINE(build/include_subdir)
 #include "Parser.hpp"
 #include "PromptWriter.hpp"
 #include "TestWriter.hpp"
@@ -9,12 +8,13 @@
 #include "object_generator.hpp"
 #include "query_generator.hpp"
 #include "sanitizer_processor.hpp"
+#include "differential_tester.hpp"
 
 namespace fs = std::filesystem;
 
 int main(int argc, char *argv[]) {
     if (argc < 2 || argc > 2) {
-        std::cout << "Please provide single parameter (0, 1, 2)\n";
+        std::cout << "Please provide single parameter (0, 1, 2, 3)\n";
         return 1;
     }
 
@@ -22,16 +22,12 @@ int main(int argc, char *argv[]) {
     try {
         parameter = std::stoi(argv[1]);
     } catch (const std::invalid_argument &e) {
-        std::cout
-            << "Invalid parameter. Please provide a valid integer (0, 1, or 2)."
-            << std::endl;
+        std::cout << "Invalid parameter. Please provide a valid integer (0, 1, 2, or 3)." << std::endl;
         return 1;
     }
 
-    if (parameter < 0 || parameter > 2) {
-        std::cout << "Invalid parameter. Please provide a value between 0 and 2 "
-                    "(inclusive)."
-                << std::endl;
+    if (parameter < 0 || parameter > 3) {
+        std::cout << "Invalid parameter. Please provide a value between 0 and 3 (inclusive)." << std::endl;
         return 1;
     }
 
@@ -62,7 +58,7 @@ int main(int argc, char *argv[]) {
         QueryGenerator qGenerate("llama2");
         qGenerate.loadModel();
         std::string response = qGenerate.askModel(prompt);
-        // TODO: write constructor for the class Parser
+
         Parser parser;
         std::string program = parser.getCProgram(response);
         std::cout << "============================" << std::endl;
@@ -77,6 +73,7 @@ int main(int argc, char *argv[]) {
             std::cerr << "Error: failed writing test file\n";
             return 1;
         }
+
         PromptWriter promptWriter;
         auto [promptPath, promptSuccess] =
             promptWriter.savePrompt(prompt, filepath, optLevel, randomCompilerOpt,
@@ -86,14 +83,15 @@ int main(int argc, char *argv[]) {
             std::cerr << "Error: failed saving prompt file\n";
             return 1;
         }
+
         GenerateObject object;
         std::string objectPath = object.generateObjectFile(filepath, compile_cmd);
         if (objectPath.empty()) {
             std::cerr << "Error: failed generating object file\n";
+            return 1;
         }
         std::cout << "Running sanitizer checks on generated object files..." << std::endl;
     } else if (parameter == 2) {
-        // Make sure the required directories exist
         fs::create_directories("../test");
         fs::create_directories("../object");
         fs::create_directories("../correct_code");
@@ -119,12 +117,19 @@ int main(int argc, char *argv[]) {
             std::cerr << "Filesystem error: " << e.what() << std::endl;
             return 1;
         }
+    } else if (parameter == 3) {
+        try {
+            fs::create_directories("../test");
+            DifferentialTester tester;
+            tester.processAllFiles();
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+            return 1;
+        }
     } else {
         std::string res = argc > 2 ? argv[2] : "";
         if (res.empty()) {
-            std::cout << "Invalid parameter. Please provide a result text from "
-                       "LLM model."
-                    << std::endl;
+            std::cout << "Invalid parameter. Please provide a result text from LLM model." << std::endl;
             return 1;
         }
     }

@@ -51,7 +51,7 @@ def main():
             os.chdir(original_dir)
 
             subprocess.run(["./query_generator", "2"])
-
+            subprocess.run(["./query_generator", "3"])
             run_count += 1
             time.sleep(1)
 
