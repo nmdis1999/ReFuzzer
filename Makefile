@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Werror
-LDFLAGS = -lcurl  # Add curl library linking
+LDFLAGS = -lcurl
 
 QUERY_GEN_DIR = query_generator
 MODEL2_DIR = model2
@@ -14,18 +14,17 @@ QUERY_GEN_SOURCES = $(QUERY_GEN_DIR)/query_generator.cpp
 QUERY_GEN_HEADERS = $(QUERY_GEN_DIR)/*.hpp
 RECOMPILE_SOURCES = $(MODEL2_DIR)/recompile.cpp
 
+JSON_FLAGS = $(shell pkg-config --cflags --libs nlohmann_json)
+
 .PHONY: all clean run
 
-all: $(QUERY_GEN) run_generator $(RECOMPILE)
+all: $(QUERY_GEN) $(RECOMPILE)
 
 $(QUERY_GEN): $(QUERY_GEN_SOURCES) $(QUERY_GEN_HEADERS)
-	$(CXX) $(CXXFLAGS) -I$(QUERY_GEN_DIR) $(QUERY_GEN_SOURCES) $(LDFLAGS) -o $(QUERY_GEN)
-
-run_generator: $(QUERY_GEN)
-	cd $(QUERY_GEN_DIR) && python3 generatePrograms.py $(NUM_PROGRAMS)
-
+	$(CXX) $(CXXFLAGS) -I. $< $(LDFLAGS) $(JSON_FLAGS) -o $@
 $(RECOMPILE): $(RECOMPILE_SOURCES)
-	$(CXX) $(CXXFLAGS) -I$(MODEL2_DIR) $(RECOMPILE_SOURCES) $(LDFLAGS) -o $(RECOMPILE)
+	$(CXX) $(CXXFLAGS) -I$(MODEL2_DIR) $< $(LDFLAGS) $(JSON_FLAGS) -o $@
+
 
 clean:
 	rm -f $(QUERY_GEN) $(RECOMPILE)

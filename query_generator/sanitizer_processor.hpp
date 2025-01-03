@@ -19,9 +19,9 @@ private:
     };
 
     const std::vector<SanitizerConfig> configs = {
-        {"asan_ubsan", "-fsanitize=address,undefined -fsanitize-address-use-after-scope"},
-        {"tsan", "-fsanitize=thread"},
-        {"leak", "-fsanitize=leak"}
+    {"asan_ubsan", "-fsanitize=address,undefined -fsanitize-address-use-after-scope -fsanitize=function"},
+    {"tsan", "-fsanitize=thread"},
+    {"leak", "-fsanitize=leak"}
     };
 
     bool createDirectory(const std::string& path) {
