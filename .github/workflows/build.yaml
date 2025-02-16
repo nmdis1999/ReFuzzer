@@ -27,7 +27,7 @@ jobs:
 
       - name: Prepare CMake
         run: |-
-          cmake -B build -S . \
+          cmake build . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
 
