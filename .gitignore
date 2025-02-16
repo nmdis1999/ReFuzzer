@@ -19,4 +19,6 @@ cmake_install.cmake
 CMakeUserPresets.json
 build/**/*
 build
-*/**/CmakeFiles
+*/**/CMakeFiles
+Makefile
+*/**/Makefile
