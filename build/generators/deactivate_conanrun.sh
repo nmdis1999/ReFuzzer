@@ -1,0 +1,1 @@
+. "/Users/iti/SmartCompilerTesting/build/generators/deactivate_conanrunenv-release-armv8.sh"

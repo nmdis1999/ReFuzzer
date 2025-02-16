@@ -476,7 +476,7 @@ private:
       "__STDC_LIB_EXT1__ macro,",
       "__STDC_MB_MIGHT_NEQ_WC__ macro,",
       "__STDC_NO_ATOMICS__ macro,",
-      "__STDC_NO_COMPLEX__ macro,",
+      "__STDC_NO_COMaLEX__ macro,",
       "__STDC_NO_THREADS__ macro,",
       "__STDC_NO_VLA__ macro,",
       "__STDC_UTF_16__ macro,",
