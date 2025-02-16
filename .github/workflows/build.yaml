@@ -22,7 +22,7 @@ jobs:
       - name: Install C++ Dependencies
         run: |-
           conan profile detect
-          conan install . --install=missing
+          conan install . --build=missing
 
       - name: Prepare CMake
         run: cmake . -DCMAKE_BUILD_TYPE=build/conan_toolchain.cmake
