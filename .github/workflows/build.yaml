@@ -5,6 +5,7 @@ on:
       - "**"
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
 
@@ -25,7 +26,10 @@ jobs:
           conan install . --build=missing
 
       - name: Prepare CMake
-        run: cmake . -DCMAKE_BUILD_TYPE=build/conan_toolchain.cmake
+        run: |-
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
 
       - name: Compile Project
         run: cmake --build .
