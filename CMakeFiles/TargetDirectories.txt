@@ -1,8 +1,0 @@
-/Users/iti/SmartCompilerTesting/CMakeFiles/edit_cache.dir
-/Users/iti/SmartCompilerTesting/CMakeFiles/rebuild_cache.dir
-/Users/iti/SmartCompilerTesting/src/query_generator/CMakeFiles/query_generator.dir
-/Users/iti/SmartCompilerTesting/src/query_generator/CMakeFiles/edit_cache.dir
-/Users/iti/SmartCompilerTesting/src/query_generator/CMakeFiles/rebuild_cache.dir
-/Users/iti/SmartCompilerTesting/src/model2/CMakeFiles/recompile.dir
-/Users/iti/SmartCompilerTesting/src/model2/CMakeFiles/edit_cache.dir
-/Users/iti/SmartCompilerTesting/src/model2/CMakeFiles/rebuild_cache.dir

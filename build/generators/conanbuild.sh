@@ -1,1 +1,0 @@
-. "/Users/iti/SmartCompilerTesting/build/generators/conanbuildenv-release-armv8.sh"
