@@ -5,7 +5,6 @@ on:
       - "**"
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
 
@@ -27,9 +26,9 @@ jobs:
 
       - name: Prepare CMake
         run: |-
-          cmake build . \
+          cmake build  . \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
+            -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
 
       - name: Compile Project
         run: cmake --build .
