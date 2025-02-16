@@ -12,3 +12,11 @@ test_parser
 __pycache__
 ollama-hpp
 query_generator/query_generator
+CMakeFiles
+CMakeFiles/**/*
+CMakeCache.txt
+cmake_install.cmake
+CMakeUserPresets.json
+build/**/*
+build
+*/**/CmakeFiles
