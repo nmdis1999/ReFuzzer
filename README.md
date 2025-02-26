@@ -31,10 +31,8 @@ conan install . --build=missing
 
 3. Configure the project with CMake:
 
-```bash
-cmake -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
+```base
+cmake . -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 ```
 
 4. Build the project:
