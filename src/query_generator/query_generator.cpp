@@ -6,41 +6,155 @@
 #include "llm_tokens_options.hpp"
 #include "object_generator.hpp"
 #include "sanitizer_processor.hpp"
-#include "compiler_fixer.hpp"
 #include <filesystem>
 #include <iostream>
 #include <string>
-
-// Include the new code fixer function
-void fixCFiles(const std::string& dirPath);
+#include <cstdlib>
 
 namespace fs = std::filesystem;
 
-// Function to compile a directory of C files
+void setupDirectories(const std::string& dirPath) {
+  namespace fs = std::filesystem;
+  
+  fs::create_directories("../test");
+  fs::create_directories("../object");
+  fs::create_directories("../log");
+  fs::create_directories("../sanitizer_log");
+  fs::create_directories("../sanitizer_crash");
+  
+  std::string resultDir = dirPath + "_recompiled";
+  fs::create_directories(resultDir + "/correct");
+  fs::create_directories(resultDir + "/incorrect");
+  
+  std::cout << "Created directories for organizing code in " << resultDir << std::endl;
+}
+
+void saveResultsToSourceDirectory(const std::string& dirPath) {
+  namespace fs = std::filesystem;
+  
+  // Use a new folder with _recompiled suffix
+  std::string resultDir = dirPath + "_recompiled";
+  std::cout << "Organizing results in " << resultDir << "..." << std::endl;
+  
+  // First, clear any existing files in the target directories
+  if (fs::exists(resultDir + "/correct")) {
+    for (const auto& entry : fs::directory_iterator(resultDir + "/correct")) {
+      fs::remove(entry.path());
+    }
+  }
+  
+  if (fs::exists(resultDir + "/incorrect")) {
+    for (const auto& entry : fs::directory_iterator(resultDir + "/incorrect")) {
+      fs::remove(entry.path());
+    }
+  }
+  
+  std::unordered_set<std::string> processedFiles;
+  
+  if (fs::exists("../correct_code")) {
+    for (const auto& entry : fs::directory_iterator("../correct_code")) {
+      if (entry.path().extension() == ".c") {
+        std::string filename = entry.path().filename().string();
+        fs::path destPath = fs::path(resultDir) / "correct" / filename;
+        
+        if (processedFiles.find(filename) == processedFiles.end()) {
+          try {
+            fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
+            std::cout << "Copied correct file to: " << destPath.string() << std::endl;
+            processedFiles.insert(filename);
+          } catch (const fs::filesystem_error& e) {
+            std::cerr << "Error copying file: " << e.what() << std::endl;
+          }
+        }
+      }
+    }
+  }
+  
+  for (const auto& entry : fs::directory_iterator("../test")) {
+    if (entry.path().extension() == ".c") {
+      std::string filename = entry.path().filename().string();
+      std::string basename = entry.path().stem().string();
+      fs::path objectPath = "../object/" + basename + ".o";
+      
+      if (processedFiles.find(filename) != processedFiles.end()) {
+        continue;
+      }
+      
+      if (!fs::exists(objectPath)) {
+        fs::path destPath = fs::path(resultDir) / "incorrect" / filename;
+        try {
+          fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
+          std::cout << "Copied incorrect file to: " << destPath.string() << std::endl;
+          processedFiles.insert(filename);
+        } catch (const fs::filesystem_error& e) {
+          std::cerr << "Error copying file: " << e.what() << std::endl;
+        }
+      } else {
+        fs::path correctPath = "../correct_code/" + filename;
+        if (!fs::exists(correctPath)) {
+          fs::path destPath = fs::path(resultDir) / "incorrect" / filename;
+          try {
+            fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
+            std::cout << "Copied file with object but with possible sanitizer errors to: " << destPath.string() << std::endl;
+            processedFiles.insert(filename);
+          } catch (const fs::filesystem_error& e) {
+            std::cerr << "Error copying file: " << e.what() << std::endl;
+          }
+        }
+      }
+    }
+  }
+  
+  int correctCount = 0;
+  int incorrectCount = 0;
+  
+  if (fs::exists(resultDir + "/correct")) {
+    for (const auto& entry : fs::directory_iterator(resultDir + "/correct")) {
+      correctCount++;
+    }
+  }
+  
+  if (fs::exists(resultDir + "/incorrect")) {
+    for (const auto& entry : fs::directory_iterator(resultDir + "/incorrect")) {
+      incorrectCount++;
+    }
+  }
+  
+  std::cout << "Finished organizing files in " << resultDir << std::endl;
+  std::cout << "Summary: " << correctCount << " correct files, " 
+            << incorrectCount << " incorrect files" << std::endl;
+  std::cout << "Total: " << (correctCount + incorrectCount) << " files processed" << std::endl;
+}
+
 void compileCFilesInDirectory(const std::string& dirPath) {
-  // Clean and recreate directories
+  namespace fs = std::filesystem;
+  
+  setupDirectories(dirPath);
+  
   if (fs::exists("../test")) {
     fs::remove_all("../test");
   }
   fs::create_directories("../test");
-  fs::create_directories("../object");
   
   GenerateObject objectGenerator;
   
   bool foundFiles = false;
   try {
     for (const auto& entry : fs::directory_iterator(dirPath)) {
+      if (entry.is_directory() && 
+          (entry.path().filename() == "correct" || entry.path().filename() == "incorrect")) {
+        continue;
+      }
+      
       if (entry.path().extension() == ".c") {
         foundFiles = true;
         std::cout << "Processing: " << entry.path().string() << std::endl;
         
-        // Copy file to ../test directory
         std::string filename = entry.path().filename().string();
         fs::path destPath = "../test/" + filename;
         fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
         std::cout << "Copied to: " << destPath.string() << std::endl;
         
-        // Default compile command (can be enhanced with options)
         std::string compileCmd = "gcc -c " + destPath.string();
         
         std::string objectPath = objectGenerator.generateObjectFile(destPath.string(), compileCmd);
@@ -60,18 +174,34 @@ void compileCFilesInDirectory(const std::string& dirPath) {
   }
 }
 
+void fixCFilesUsingRecompile() {
+  std::cout << "Running recompile to fix compilation and runtime errors..." << std::endl;
+  
+  // Create a temporary file to capture output
+  std::string command = "cd ../model2 && ./recompile > ../recompile_output.txt 2>&1";
+  int result = system(command.c_str());
+  
+  // Display the output
+  std::cout << "Recompile output (from recompile_output.txt):" << std::endl;
+  system("cat ../recompile_output.txt");
+  
+  if (result == 0) {
+    std::cout << "Recompile completed successfully." << std::endl;
+  } else {
+    std::cerr << "Recompile returned with error code: " << result << std::endl;
+  }
+}
+
 void displayHelp() {
   std::cout << "Usage: ./program <option> [directory_path]" << std::endl;
   std::cout << "Options:" << std::endl;
   std::cout << "  0: Reserved option" << std::endl;
-  std::cout << "  1: Generate C programs using LLM model" << std::endl;
+  std::cout << "  1: Generate C programs using LLM model (WIP)" << std::endl;
   std::cout << "  2: Run sanitizer checks on generated object files" << std::endl;
-  std::cout << "  3: Run differential testing on all files" << std::endl;
+  std::cout << "  3: Run differential testing on all files (WIP)" << std::endl;
   std::cout << "  4: Compile all .c files in specified directory to object files" << std::endl;
-  std::cout << "  5: Fix compilation errors in .c files using LLM (class-based implementation)" << std::endl;
-  std::cout << "  6: Fix compilation errors in .c files using LLM (direct implementation)" << std::endl;
-  std::cout << "Example: ./program 4 ./my_c_files" << std::endl;
-  std::cout << "Example: ./program 6 ./buggy_c_files" << std::endl;
+  std::cout << "  5: Fix compilation and runtime errors in .c files using recompile and organize" << std::endl;
+  std::cout << "     files into correct/incorrect subdirectories" << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -122,17 +252,15 @@ int main(int argc, char *argv[]) {
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
 
-    // Use Parser to extract and save C program
-    Parser parser;
-    std::string program = parser.getCProgram(response);
+    std::string program = Parser::getCProgram(response);
     std::cout << "============================" << std::endl;
     std::cout << "Program: \n" << program << std::endl;
     std::cout << "============================" << std::endl;
 
-    auto compile_cmd = parser.getGccCommand(response);
-    auto runtime_cmd = parser.getRuntimeCommand(response);
+    auto compile_cmd = Parser::getGccCommand(response);
+    auto runtime_cmd = Parser::getRuntimeCommand(response);
 
-    auto [filepath, formatSuccess] = parser.parseAndSaveProgram(response);
+    auto [filepath, formatSuccess] = Parser::parseAndSaveProgram(response);
     if (filepath.empty()) {
       std::cerr << "Error: failed writing test file\n";
       return 1;
@@ -209,7 +337,7 @@ int main(int argc, char *argv[]) {
     std::cout << "You can now run sanitizer checks with option 2." << std::endl;
   } else if (parameter == 5) {
     if (argc < 3) {
-      std::cout << "Please provide a directory path containing .c files with compilation errors" << std::endl;
+      std::cout << "Please provide the source directory path" << std::endl;
       displayHelp();
       return 1;
     }
@@ -220,14 +348,29 @@ int main(int argc, char *argv[]) {
       return 1;
     }
     
-    CompilerFixer fixer;
-    fixer.processDirectory(dirPath);
+    setupDirectories(dirPath);
     
-    std::cout << "Compilation error fixing complete." << std::endl;
-    std::cout << "Fixed code is available in ../fixed_code directory." << std::endl;
-    std::cout << "Successfully fixed files are also copied to ../test directory." << std::endl;
-    std::cout << "You can now run sanitizer checks with option 2." << std::endl;
-  }  else {
+    fixCFilesUsingRecompile();
+    
+    SanitizerProcessor sanitizer;
+    try {
+      for (const auto &entry : fs::directory_iterator("../object")) {
+        if (entry.path().extension() == ".o") {
+          std::cout << "Processing: " << entry.path().string() << std::endl;
+          sanitizer.processSourceFile(entry.path().string());
+        }
+      }
+    } catch (const fs::filesystem_error &e) {
+      std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+    
+    saveResultsToSourceDirectory(dirPath);
+
+    std::string resultDir = dirPath + "_recompiled";
+    std::cout << "Recompilation and organization complete." << std::endl;
+    std::cout << "Correct files are in: " << resultDir << "/correct" << std::endl;
+    std::cout << "Incorrect files are in: " << resultDir << "/incorrect" << std::endl;
+  } else {
     std::string res = argc > 2 ? argv[2] : "";
     if (res.empty()) {
       std::cout << "Invalid parameter. Please provide a result text from LLM model." << std::endl;

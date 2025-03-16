@@ -128,6 +128,7 @@ private:
 public:
     void processSourceFile(const std::string& objectPath) {
         if (!createDirectory("../test")) return;
+        if (!createDirectory("../correct_code")) return;
 
         std::string baseFilename = getFileName(objectPath);
         std::string sourcePath = findSourceFile(baseFilename);
@@ -173,16 +174,21 @@ public:
         }
 
         if (allChecksPassed) {
-            if (!createDirectory("../correct_code")) {
-                std::cerr << "Failed to create correct_code directory" << std::endl;
-                return;
-            }
-
             try {
                 std::string destPath = "../correct_code/" + fs::path(sourcePath).filename().string();
                 std::cout << "Copying " << sourcePath << " to " << destPath << std::endl;
                 fs::copy(sourcePath, destPath, fs::copy_options::overwrite_existing);
                 std::cout << "All sanitizer checks passed. Copied " << sourcePath << " to " << destPath << std::endl;
+                
+                std::string sanitizerLogPath = "../sanitizer_log/" + baseFilename + ".log";
+                std::string crashLogPath = "../sanitizer_crash/" + baseFilename + ".log";
+                
+                if (fs::exists(sanitizerLogPath)) {
+                    fs::remove(sanitizerLogPath);
+                }
+                if (fs::exists(crashLogPath)) {
+                    fs::remove(crashLogPath);
+                }
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "Error copying file to correct_code: " << e.what() << std::endl;
             }
