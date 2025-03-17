@@ -32,11 +32,9 @@ void setupDirectories(const std::string& dirPath) {
 void saveResultsToSourceDirectory(const std::string& dirPath) {
   namespace fs = std::filesystem;
   
-  // Use a new folder with _recompiled suffix
   std::string resultDir = dirPath + "_recompiled";
   std::cout << "Organizing results in " << resultDir << "..." << std::endl;
   
-  // First, clear any existing files in the target directories
   if (fs::exists(resultDir + "/correct")) {
     for (const auto& entry : fs::directory_iterator(resultDir + "/correct")) {
       fs::remove(entry.path());
@@ -174,14 +172,12 @@ void compileCFilesInDirectory(const std::string& dirPath) {
   }
 }
 
-void fixCFilesUsingRecompile() {
-  std::cout << "Running recompile to fix compilation and runtime errors..." << std::endl;
+void fixCFilesUsingRecompile(const std::string& modelName) {
+  std::cout << "Running recompile to fix compilation and runtime errors using model: " << modelName << "..." << std::endl;
   
-  // Create a temporary file to capture output
-  std::string command = "cd ../model2 && ./recompile > ../recompile_output.txt 2>&1";
+  std::string command = "cd ../model2 && ./recompile --model=" + modelName + " > ../recompile_output.txt 2>&1";
   int result = system(command.c_str());
   
-  // Display the output
   std::cout << "Recompile output (from recompile_output.txt):" << std::endl;
   system("cat ../recompile_output.txt");
   
@@ -192,40 +188,44 @@ void fixCFilesUsingRecompile() {
   }
 }
 
+
 void displayHelp() {
-  std::cout << "Usage: ./program <option> [directory_path]" << std::endl;
+  std::cout << "Usage: ./program <command> [options] [directory_path]" << std::endl;
+  std::cout << "Commands:" << std::endl;
+  std::cout << "  generate      Generate C programs using LLM model" << std::endl;
+  std::cout << "  sanitize      Run sanitizer checks on generated object files" << std::endl;
+  std::cout << "  difftest      Run differential testing on all files" << std::endl;
+  std::cout << "  compile       Process and compile all .c files in specified directory" << std::endl;
+  std::cout << "  refuzz        Fix compilation errors, run sanitizers, and organize" << std::endl;
+  std::cout << "                files into correct/incorrect subdirectories" << std::endl;
+  std::cout << "  help          Display this help message" << std::endl;
+  std::cout << std::endl;
   std::cout << "Options:" << std::endl;
-  std::cout << "  0: Reserved option" << std::endl;
-  std::cout << "  1: Generate C programs using LLM model (WIP)" << std::endl;
-  std::cout << "  2: Run sanitizer checks on generated object files" << std::endl;
-  std::cout << "  3: Run differential testing on all files (WIP)" << std::endl;
-  std::cout << "  4: Compile all .c files in specified directory to object files" << std::endl;
-  std::cout << "  5: Fix compilation and runtime errors in .c files using recompile and organize" << std::endl;
-  std::cout << "     files into correct/incorrect subdirectories" << std::endl;
+  std::cout << "  --model=<name>  Specify the Ollama model to use (default: llama2)" << std::endl;
+  std::cout << "                  Example: --model=llama3" << std::endl;
+}
+
+std::string parseModelOption(int argc, char *argv[]) {
+  std::string defaultModel = "llama3.2";
+  
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg.find("--model=") == 0) {
+      return arg.substr(8);
+    }
+  }
+  
+  return defaultModel;
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 2 || argc > 3) {
+  if (argc < 2) {
     displayHelp();
     return 1;
   }
+  std::string command = argv[1];
 
-  int parameter;
-  try {
-    parameter = std::stoi(argv[1]);
-  } catch (const std::invalid_argument &e) {
-    std::cout << "Invalid parameter. Please provide a valid integer (0-6)." << std::endl;
-    displayHelp();
-    return 1;
-  }
-
-  if (parameter < 0 || parameter > 6) {
-    std::cout << "Invalid parameter. Please provide a value between 0 and 6 (inclusive)." << std::endl;
-    displayHelp();
-    return 1;
-  }
-
-  if (parameter == 1) {
+  if (command == "generate" || command == "gen") {
     LLMTokensOption llmIndexedTokens;
 
     std::string randomCompilerOpt = llmIndexedTokens.getRandomCompilerOpt();
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
       return 1;
     }
     std::cout << "Running sanitizer checks on generated object files..." << std::endl;
-  } else if (parameter == 2) {
+  } else if (command == "sanitize" || command == "san") {
     fs::create_directories("../test");
     fs::create_directories("../object");
     fs::create_directories("../correct_code");
@@ -309,7 +309,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Filesystem error: " << e.what() << std::endl;
       return 1;
     }
-  } else if (parameter == 3) {
+  } else if (command == "difftest") {
     try {
       fs::create_directories("../test");
       DifferentialTester tester;
@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Filesystem error: " << e.what() << std::endl;
       return 1;
     }
-  } else if (parameter == 4) {
+  } else if (command == "compile") {
     if (argc < 3) {
       std::cout << "Please provide a directory path containing .c files" << std::endl;
       displayHelp();
@@ -335,22 +335,34 @@ int main(int argc, char *argv[]) {
     
     std::cout << "Files copied to ../test and compilation complete." << std::endl;
     std::cout << "You can now run sanitizer checks with option 2." << std::endl;
-  } else if (parameter == 5) {
-    if (argc < 3) {
+  } else if (command == "refuzz" || command == "rf") {
+    std::string modelName = parseModelOption(argc, argv);
+    
+    std::string dirPath;
+    for (int i = 2; i < argc; i++) {
+      std::string arg = argv[i];
+      if (arg.find("--") != 0) { 
+        dirPath = arg;
+        break;
+      }
+    }
+    
+    if (dirPath.empty()) {
       std::cout << "Please provide the source directory path" << std::endl;
       displayHelp();
       return 1;
     }
     
-    std::string dirPath = argv[2];
     if (!fs::exists(dirPath) || !fs::is_directory(dirPath)) {
       std::cerr << "Error: " << dirPath << " is not a valid directory" << std::endl;
       return 1;
     }
     
+    std::cout << "Using model: " << modelName << " for refuzzing..." << std::endl;
+    
     setupDirectories(dirPath);
     
-    fixCFilesUsingRecompile();
+    fixCFilesUsingRecompile(modelName);
     
     SanitizerProcessor sanitizer;
     try {
@@ -370,13 +382,12 @@ int main(int argc, char *argv[]) {
     std::cout << "Recompilation and organization complete." << std::endl;
     std::cout << "Correct files are in: " << resultDir << "/correct" << std::endl;
     std::cout << "Incorrect files are in: " << resultDir << "/incorrect" << std::endl;
+  }  else if (command == "help" || command == "h" || command == "--help" || command == "-h") {
+    displayHelp(); 
   } else {
-    std::string res = argc > 2 ? argv[2] : "";
-    if (res.empty()) {
-      std::cout << "Invalid parameter. Please provide a result text from LLM model." << std::endl;
-      return 1;
-    }
+    std::cout << "Unknown command: " << command << std::endl;
+    displayHelp();
+    return 1;
   }
-
   return 0;
 }

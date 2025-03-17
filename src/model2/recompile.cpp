@@ -29,7 +29,23 @@ bool checkForSanitizerErrors(const std::string& baseFilename) {
            std::filesystem::exists(crashLogPath);
 }
 
+std::string parseModelOption(int argc, char *argv[]) {
+  std::string defaultModel = "llama3.2";
+  
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg.find("--model=") == 0) {
+      return arg.substr(8);
+    }
+  }
+  
+  return defaultModel;
+}
+
 int main(int argc, char *argv[]) {
+  std::string modelName = parseModelOption(argc, argv);
+  std::cout << "Using LLM model: " << modelName << std::endl;
+
   TestWriter writer;
   if (!writer.directoryExists("../log")) {
     std::cerr << "Log directory doesn't exist." << std::endl;
@@ -51,7 +67,7 @@ int main(int argc, char *argv[]) {
         "optimization level, please analyze and correct the program to resolve "
         "the compilation errors.";
 
-    QueryGenerator qGenerate("llama3.2");
+    QueryGenerator qGenerate(modelName);
     qGenerate.loadModel();
 
     std::string fullPrompt =
@@ -92,7 +108,6 @@ int main(int argc, char *argv[]) {
           "optimization level, please analyze and correct the program to resolve "
           "the sanitizer errors in the program.";
 
-      // Get combined content from both log files if they exist
       std::string sanitizerContent;
       std::string sanitizerLogPath = "../sanitizer_log/" + file + ".log";
       std::string crashLogPath = "../sanitizer_crash/" + file + ".log";
