@@ -1,6 +1,11 @@
 # Compiler Fuzzing Seed Generator
 
-A tool that leverages Large Language Models (LLM) to generate seeds for compiler fuzzing.
+A tool that leverages open-source Large Language Models (LLMs) to generate and repair seeds for compiler fuzzing.
+
+## Features
+
+- Blackbox fuzzer to generate C programs using Ollama model
+- ReFuzzer component to repair and validate generated code by fixing compilation and runtime errors
 
 ## Prerequisites
 
@@ -46,3 +51,27 @@ cmake --build build
 ```
 
 ```
+
+## Usage
+
+### Commands
+
+- **Generate C Programs**:
+
+  ```bash
+  ./query_generator generate
+  ```
+
+- **Compile Directory**:  
+  First, run initial compilation to generate object files for the test cases:
+
+  ```bash
+  ./query_generator compile <directory_path>
+  ```
+
+- **ReFuzz the C code directory**:
+  ```bash
+  ./query_generator refuzz <directory_path> [--model=<model_name>]
+  ```
+
+The default model we are using is `llama3.2`
