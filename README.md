@@ -23,8 +23,8 @@ The following tools and dependencies are required to build and run the project:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/nmdis1999/SmartCompilerTesting.git
-cd SmartCompilerTesting
+git clone https://github.com/nmdis1999/ReFuzzer.git
+cd ReFuzzer
 ```
 
 2. Set up Conan and install dependencies:
