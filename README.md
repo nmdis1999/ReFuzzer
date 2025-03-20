@@ -17,7 +17,13 @@ The following tools and dependencies are required to build and run the project:
 - GCC 13
 - Ollama
 - Conan 2.x (package manager)
+- Curl 
 
+Installing prerequisites :
+```
+sudo apt install -y nlohmann-json3-dev
+sudo apt install -y nlohmann-json3-dev
+```
 ## Building the Project
 
 1. Clone the repository:
@@ -48,8 +54,17 @@ cmake --build build
 
 5. Using Docker
 
+Pull latest refuzzer image:
 ```
-
+docker pull shreei/refuzzer:latest
+```
+Run the container with the image:
+```
+docker run -p 11434:11434 shreei/refuzzer:latest
+```
+and finally connect to the container
+```
+docker exec -it <container_id> /bin/bash
 ```
 
 ## Usage
