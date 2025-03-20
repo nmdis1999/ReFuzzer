@@ -17,12 +17,12 @@ The following tools and dependencies are required to build and run the project:
 - GCC 13
 - Ollama
 - Conan 2.x (package manager)
-- Curl 
+- Curl
+- nlohmann / json
 
 Installing prerequisites :
 ```
-sudo apt install -y nlohmann-json3-dev
-sudo apt install -y nlohmann-json3-dev
+sudo apt install -y nlohmann-json3-dev curl
 ```
 ## Building the Project
 
