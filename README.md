@@ -71,6 +71,7 @@ docker exec -it <container_id> /bin/bash
 
 ### Commands
 
+You can find the binary to run in src/query_generator folder.
 - **Generate C Programs**:
 
   ```bash
