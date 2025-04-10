@@ -153,23 +153,36 @@ public:
         bool allChecksPassed = true;
         for (const auto& config : configs) {
             std::string executablePath = "../test/" + baseFilename + "_" + config.name;
-            std::string command = "clang " + config.flags +
+            std::string compileCommand = "clang " + config.flags +
                                 " -fno-omit-frame-pointer"
                                 " -fno-optimize-sibling-calls"
                                 " -O1 -g " +
                                 sourcePath + " -o " + executablePath;
 
-            std::string output;
-            bool success = executeCommand(command, output);
+            std::string compileOutput;
+            bool compileSuccess = executeCommand(compileCommand, compileOutput);
 
-            if (!success) {
-                std::cout << "Sanitizer check (" << config.name << ") failed for: " << sourcePath << std::endl;
-                std::cout << "Error output: " << output << std::endl;
-                logError(sourcePath, config.name, output);
+            if (!compileSuccess) {
+                std::cout << "Sanitizer compilation (" << config.name << ") failed for: " << sourcePath << std::endl;
+                std::cout << "Error output: " << compileOutput << std::endl;
+                logError(sourcePath, config.name, compileOutput);
                 allChecksPassed = false;
                 break;
             } else {
-                std::cout << "Sanitizer check (" << config.name << ") passed for: " << sourcePath << std::endl;
+                std::cout << "Sanitizer compilation (" << config.name << ") succeeded for: " << sourcePath << std::endl;
+                std::string runOutput;
+                std::string runCommand = executablePath;
+                bool runSuccess = executeCommand(runCommand, runOutput);
+                
+                if (!runSuccess || isSanitizerViolation(runOutput)) {
+                    std::cout << "Sanitizer check (" << config.name << ") failed during execution for: " << sourcePath << std::endl;
+                    std::cout << "Error output: " << runOutput << std::endl;
+                    logError(sourcePath, config.name, runOutput);
+                    allChecksPassed = false;
+                    break;
+                } else {
+                    std::cout << "Sanitizer check (" << config.name << ") passed for: " << sourcePath << std::endl;
+                }
             }
         }
 
