@@ -375,6 +375,33 @@ int main(int argc, char *argv[]) {
       std::cerr << "Filesystem error: " << e.what() << std::endl;
       return 1;
     }
+  } else if (command == "test-compiler") {
+    // Parse compiler paths if provided
+    std::string clangPath = parseOption(argc, argv, "--clang=", "afl-clang");
+    std::string gccPath = parseOption(argc, argv, "--gcc=", "afl-gcc");
+    
+    // Create a simple C file for testing
+    std::string testFilePath = "small.c";
+    std::ofstream testFile(testFilePath);
+    testFile << "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, world!\\n\");\n    return 0;\n}\n";
+    testFile.close();
+    
+    // Test Clang
+    std::cout << "Testing Clang path: " << clangPath << std::endl;
+    std::string clangCmd = clangPath + " -fsyntax-only " + testFilePath;
+    std::cout << "Running: " << clangCmd << std::endl;
+    int clangResult = system(clangCmd.c_str());
+    std::cout << "Clang exit code: " << WEXITSTATUS(clangResult) << std::endl;
+    
+    // Test GCC
+    std::cout << "Testing GCC path: " << gccPath << std::endl;
+    std::string gccCmd = gccPath + " -fsyntax-only " + testFilePath;
+    std::cout << "Running: " << gccCmd << std::endl;
+    int gccResult = system(gccCmd.c_str());
+    std::cout << "GCC exit code: " << WEXITSTATUS(gccResult) << std::endl;
+    
+    // Clean up
+    std::remove(testFilePath.c_str());
   } else if (command == "crashtest") {
     try {
       std::string clangPath = parseOption(argc, argv, "--clang=", "afl-clang");
@@ -393,7 +420,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "Error: Directory '" << dirPath << "' does not exist." << std::endl;
         if (dirPath == "../test") {
           std::cerr << "Generate some files first using the 'generate' command." << std::endl;
-          std::cerr << "Example: ./query_generator generate --model=" << modelName << std::endl;
+          std::cerr << "Example: ./query_generator generate --model=" << std::endl;
         }
         return 1;
       }
