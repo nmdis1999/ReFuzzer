@@ -15,5 +15,7 @@ add_custom_target(clean-all
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/src/test
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/src/sanitizer_log
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/src/sanitizer_crash
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/src/object
+    COMMAND bash -c "rm -f ${CMAKE_SOURCE_DIR}/src/model2/sanitizer.supp"
+    COMMAND bash -c "rm -f ${CMAKE_SOURCE_DIR}/src/query_generator/sanitizer.supp"
+    COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_SOURCE_DIR}/query_generator/overflow*
 )
