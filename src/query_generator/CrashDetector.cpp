@@ -43,35 +43,34 @@ std::string CrashDetector::getCompilerFlags(const std::string& filePath) const {
 }
 
 CrashDetector::CompilerResult 
+CrashDetector::CompilerResult 
 CrashDetector::testCompiler(const std::string& compiler, const std::string& filePath) {
     CompilerResult result;
     
     // Create a temporary file to capture the output
-    std::string tempOutput = m_crashesDir + "/temp_output.txt";
+    std::string tempOutput = "/tmp/compiler_output.txt";
     
-    // Prepare the command
+    // Prepare the command - use the exact same approach as in test-compiler
     std::string flags = getCompilerFlags(filePath);
-    std::string command = compiler + " " + flags + " \"" + filePath + "\" 2>&1 > " + tempOutput;
     
-    // Execute the command
-    result.exitCode = std::system(command.c_str());
+    // Construct the command the same way as in test-compiler
+    std::string command = compiler + " " + flags + " " + filePath;
     
-    // Extract the exit code
+    // Log the command for debugging
+    std::cout << "  Running: " << command << std::endl;
+    
+    // Execute the command - same as in test-compiler
+    result.exitCode = system(command.c_str());
     result.exitCode = WEXITSTATUS(result.exitCode);
     
-    // Read the output
-    std::ifstream outputFile(tempOutput);
-    std::stringstream buffer;
-    if (outputFile) {
-        buffer << outputFile.rdbuf();
-        result.output = buffer.str();
+    // Read the result from stderr/stdout
+    // For simplicity, we'll just set a basic message
+    if (result.exitCode == 0) {
+        result.output = "Compiler ran successfully";
+    } else if (result.exitCode == 127) {
+        result.output = "Command not found: " + compiler;
     } else {
-        result.output = "Error: Could not read compiler output";
-    }
-    
-    // Clean up the temporary file
-    if (fs::exists(tempOutput)) {
-        fs::remove(tempOutput);
+        result.output = "Compiler failed with exit code: " + std::to_string(result.exitCode);
     }
     
     return result;
