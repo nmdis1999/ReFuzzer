@@ -1,4 +1,7 @@
-add_executable(query_generator query_generator.cpp)
+add_executable(query_generator 
+    query_generator.cpp
+    CrashDetector.cpp  
+)
 
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(query_generator nlohmann_json::nlohmann_json)
