@@ -6,6 +6,7 @@
 #include "llm_tokens_options.hpp"
 #include "object_generator.hpp"
 #include "sanitizer_processor.hpp"
+#include "CrashDetector.hpp" 
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -188,6 +189,33 @@ void fixCFilesUsingRecompile(const std::string& modelName) {
   }
 }
 
+// New function to run compiler crash detection
+void runCompilerCrashDetection(const std::string& clangPath, const std::string& gccPath) {
+  std::cout << "Running compiler crash detection using:" << std::endl;
+  std::cout << "  Clang path: " << clangPath << std::endl;
+  std::cout << "  GCC path: " << gccPath << std::endl;
+  
+  // Make sure test directory exists
+  fs::create_directories("../test");
+  fs::create_directories("../crashes");
+  
+  // Create crash detector with the specified compiler paths
+  CrashDetector detector(clangPath, gccPath);
+  
+  // Run detection on all files in the test directory
+  detector.detectCrashesInDirectory("../test");
+  
+  // Output summary - these methods should be available in your CrashDetector class
+  int totalCrashes = detector.getClangCrashes() + detector.getGccCrashes();
+  if (totalCrashes > 0) {
+    std::cout << "Found " << totalCrashes << " compiler crashes!" << std::endl;
+    std::cout << "  Clang crashes: " << detector.getClangCrashes() << std::endl;
+    std::cout << "  GCC crashes: " << detector.getGccCrashes() << std::endl;
+    std::cout << "Crash files saved to: ../crashes/" << std::endl;
+  } else {
+    std::cout << "No compiler crashes detected." << std::endl;
+  }
+}
 
 void displayHelp() {
   std::cout << "Usage: ./program <command> [options] [directory_path]" << std::endl;
@@ -195,6 +223,7 @@ void displayHelp() {
   std::cout << "  generate      Generate C programs using LLM model" << std::endl;
   std::cout << "  sanitize      Run sanitizer checks on generated object files" << std::endl;
   std::cout << "  difftest      Run differential testing on all files" << std::endl;
+  std::cout << "  crashtest     Run compiler crash testing on all files" << std::endl;
   std::cout << "  compile       Process and compile all .c files in specified directory" << std::endl;
   std::cout << "  refuzz        Fix compilation errors, run sanitizers, and organize" << std::endl;
   std::cout << "                files into correct/incorrect subdirectories" << std::endl;
@@ -203,6 +232,8 @@ void displayHelp() {
   std::cout << "Options:" << std::endl;
   std::cout << "  --model=<name>  Specify the Ollama model to use (default: llama2)" << std::endl;
   std::cout << "                  Example: --model=llama3" << std::endl;
+  std::cout << "  --clang=<path>  Path to AFL-instrumented Clang (default: /usr/local/llvm/bin/clang)" << std::endl;
+  std::cout << "  --gcc=<path>    Path to AFL-instrumented GCC (default: afl-gcc)" << std::endl;
 }
 
 std::string parseModelOption(int argc, char *argv[]) {
@@ -216,6 +247,18 @@ std::string parseModelOption(int argc, char *argv[]) {
   }
   
   return defaultModel;
+}
+
+// Helper function to parse compiler path options
+std::string parseOption(int argc, char *argv[], const std::string& option, const std::string& defaultValue) {
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg.find(option) == 0) {
+      return arg.substr(option.length());
+    }
+  }
+  
+  return defaultValue;
 }
 
 int main(int argc, char *argv[]) {
@@ -312,8 +355,36 @@ int main(int argc, char *argv[]) {
   } else if (command == "difftest") {
     try {
       fs::create_directories("../test");
+      
+      // Run traditional differential testing
       DifferentialTester tester;
       tester.processAllFiles();
+      
+      // Parse compiler paths if provided
+      std::string clangPath = parseOption(argc, argv, "--clang=", "/usr/local/llvm/bin/clang");
+      std::string gccPath = parseOption(argc, argv, "--gcc=", "afl-gcc");
+      
+      // Also run compiler crash detection
+      std::cout << std::endl;
+      std::cout << "Running compiler crash detection as part of differential testing..." << std::endl;
+      runCompilerCrashDetection(clangPath, gccPath);
+      
+    } catch (const fs::filesystem_error &e) {
+      std::cerr << "Filesystem error: " << e.what() << std::endl;
+      return 1;
+    }
+  } else if (command == "crashtest") {
+    try {
+      // For dedicated crash testing
+      fs::create_directories("../test");
+      
+      // Parse compiler paths if provided
+      std::string clangPath = parseOption(argc, argv, "--clang=", "/usr/local/llvm/bin/clang");
+      std::string gccPath = parseOption(argc, argv, "--gcc=", "afl-gcc");
+      
+      // Run compiler crash detection
+      runCompilerCrashDetection(clangPath, gccPath);
+      
     } catch (const fs::filesystem_error &e) {
       std::cerr << "Filesystem error: " << e.what() << std::endl;
       return 1;
@@ -382,7 +453,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Recompilation and organization complete." << std::endl;
     std::cout << "Correct files are in: " << resultDir << "/correct" << std::endl;
     std::cout << "Incorrect files are in: " << resultDir << "/incorrect" << std::endl;
-  }  else if (command == "help" || command == "h" || command == "--help" || command == "-h") {
+  } else if (command == "help" || command == "h" || command == "--help" || command == "-h") {
     displayHelp(); 
   } else {
     std::cout << "Unknown command: " << command << std::endl;
