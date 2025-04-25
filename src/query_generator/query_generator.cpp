@@ -189,23 +189,24 @@ void fixCFilesUsingRecompile(const std::string& modelName) {
   }
 }
 
-// New function to run compiler crash detection
-void runCompilerCrashDetection(const std::string& clangPath, const std::string& gccPath) {
+void runCompilerCrashDetection(const std::string& clangPath, const std::string& gccPath, const std::string& dirPath = "../test") {
   std::cout << "Running compiler crash detection using:" << std::endl;
   std::cout << "  Clang path: " << clangPath << std::endl;
   std::cout << "  GCC path: " << gccPath << std::endl;
+  std::cout << "  Source directory: " << dirPath << std::endl;
   
-  // Make sure test directory exists
-  fs::create_directories("../test");
+  if (!fs::exists(dirPath)) {
+    std::cerr << "Error: Source directory '" << dirPath << "' does not exist." << std::endl;
+    std::cerr << "Please create it or specify a valid directory." << std::endl;
+    throw std::runtime_error("Source directory does not exist");
+  }
+  
   fs::create_directories("../crashes");
   
-  // Create crash detector with the specified compiler paths
   CrashDetector detector(clangPath, gccPath);
   
-  // Run detection on all files in the test directory
-  detector.detectCrashesInDirectory("../test");
+  detector.detectCrashesInDirectory(dirPath);
   
-  // Output summary - these methods should be available in your CrashDetector class
   int totalCrashes = detector.getClangCrashes() + detector.getGccCrashes();
   if (totalCrashes > 0) {
     std::cout << "Found " << totalCrashes << " compiler crashes!" << std::endl;
@@ -269,6 +270,7 @@ int main(int argc, char *argv[]) {
   std::string command = argv[1];
 
   if (command == "generate" || command == "gen") {
+    std::string modelName = parseModelOption(argc, argv);
     LLMTokensOption llmIndexedTokens;
 
     std::string randomCompilerOpt = llmIndexedTokens.getRandomCompilerOpt();
@@ -291,7 +293,7 @@ int main(int argc, char *argv[]) {
         " and the program MUST be a C program. ";
 
     std::cout << "prompt" << prompt << std::endl;
-    QueryGenerator qGenerate("llama2");
+    QueryGenerator qGenerate(modelName);
     qGenerate.loadModel();
     std::string response = qGenerate.askModel(prompt);
 
@@ -348,7 +350,7 @@ int main(int argc, char *argv[]) {
       if (!foundFiles) {
         std::cout << "No object files found in ../object directory to process." << std::endl;
       }
-    } catch (const fs::filesystem_error &e) {
+    } catch (const fs::filesystem_error &e) { 
       std::cerr << "Filesystem error: " << e.what() << std::endl;
       return 1;
     }
@@ -361,7 +363,7 @@ int main(int argc, char *argv[]) {
       tester.processAllFiles();
       
       // Parse compiler paths if provided
-      std::string clangPath = parseOption(argc, argv, "--clang=", "/usr/local/llvm/bin/clang");
+      std::string clangPath = parseOption(argc, argv, "--clang=", "afl-clang");
       std::string gccPath = parseOption(argc, argv, "--gcc=", "afl-gcc");
       
       // Also run compiler crash detection
@@ -375,18 +377,43 @@ int main(int argc, char *argv[]) {
     }
   } else if (command == "crashtest") {
     try {
-      // For dedicated crash testing
-      fs::create_directories("../test");
-      
-      // Parse compiler paths if provided
-      std::string clangPath = parseOption(argc, argv, "--clang=", "/usr/local/llvm/bin/clang");
+      std::string clangPath = parseOption(argc, argv, "--clang=", "afl-clang");
       std::string gccPath = parseOption(argc, argv, "--gcc=", "afl-gcc");
+   
+      std::string dirPath = "../test";
+      for (int i = 2; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg.find("--") != 0) { 
+          dirPath = arg;
+          break;
+        }
+      }
       
-      // Run compiler crash detection
-      runCompilerCrashDetection(clangPath, gccPath);
+      if (!fs::exists(dirPath)) {
+        std::cerr << "Error: Directory '" << dirPath << "' does not exist." << std::endl;
+        if (dirPath == "../test") {
+          std::cerr << "Generate some files first using the 'generate' command." << std::endl;
+          std::cerr << "Example: ./query_generator generate --model=" << modelName << std::endl;
+        }
+        return 1;
+      }
+      
+      if (fs::is_empty(dirPath)) {
+        std::cerr << "Error: Directory '" << dirPath << "' is empty." << std::endl;
+        if (dirPath == "../test") {
+          std::cerr << "Generate some files first using the 'generate' command." << std::endl;
+          std::cerr << "Example: ./query_generator generate --model=" << std::endl;
+        }
+        return 1;
+      }
+      
+      runCompilerCrashDetection(clangPath, gccPath, dirPath);
       
     } catch (const fs::filesystem_error &e) {
       std::cerr << "Filesystem error: " << e.what() << std::endl;
+      return 1;
+    } catch (const std::exception &e) {
+      std::cerr << "Error: " << e.what() << std::endl;
       return 1;
     }
   } else if (command == "compile") {
