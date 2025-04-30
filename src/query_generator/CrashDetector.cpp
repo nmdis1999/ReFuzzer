@@ -43,7 +43,6 @@ std::string CrashDetector::getCompilerFlags(const std::string& filePath) const {
 }
 
 CrashDetector::CompilerResult 
-CrashDetector::CompilerResult 
 CrashDetector::testCompiler(const std::string& compiler, const std::string& filePath) {
     CompilerResult result;
     
