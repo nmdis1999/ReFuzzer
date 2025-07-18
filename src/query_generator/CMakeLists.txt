@@ -1,6 +1,5 @@
 add_executable(query_generator 
     query_generator.cpp
-    CrashDetector.cpp  
 )
 
 find_package(nlohmann_json REQUIRED)

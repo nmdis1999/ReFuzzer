@@ -25,7 +25,7 @@ private:
   }
 
 public:
-  PromptWriter(const std::string &directory = "../prompt")
+  PromptWriter(const std::string &directory)
       : promptsDirectory(directory) {
     std::filesystem::create_directories(promptsDirectory);
   }

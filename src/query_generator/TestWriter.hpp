@@ -27,16 +27,16 @@ public:
     return (stat(path.c_str(), &info) == 0);
   }
 
-  bool createDirectory() {
-    const std::string testDir = "../test";
-
+  bool createDirectory(const std::string &dirName) {
+    std::string testDir = dirName.empty() ? "../test" : dirName;
+    
     if (!directoryExists(testDir)) {
       if (mkdir(testDir.c_str(), 0755) != 0) {
-        std::cerr << "Error creating directory: " << strerror(errno)
-                  << std::endl;
+        std::cerr << "Error creating directory '" << testDir << "': " 
+                  << strerror(errno) << std::endl;
         return false;
       }
-      std::cout << "Test directory created successfully.\n";
+      std::cout << "Directory '" << testDir << "' created successfully.\n";
     }
     return true;
   }
@@ -50,19 +50,29 @@ public:
 
     std::stringstream ss;
     ss << prefix << "_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S")
-       << "_" << ms.count() << ".c";
+       << "_" << ms.count() << ".cpp";
 
     return ss.str();
   }
 
+  std::string ensureTrailingSlash(const std::string &path) {
+    if (path.empty()) return "./";
+    if (path.back() != '/') {
+      return path + "/";
+    }
+    return path;
+  }
+
 public:
   std::string writeFile(const std::string &filename,
-                        const std::string &content) {
+                        const std::string &content, 
+                        const std::string &dirName = "../test") {
     try {
-      if (!createDirectory()) {
+      if (!createDirectory(dirName)) {
         return "";
       }
-      std::string fullPath = "../test/" + filename;
+      
+      std::string fullPath = ensureTrailingSlash(dirName) + filename;
 
       std::ofstream file(fullPath, std::ios::out | std::ios::trunc);
       if (!file.is_open()) {
@@ -90,13 +100,17 @@ public:
     }
   }
 
-  std::string writeFile(const std::string &content, std::string &filename) {
-    if (filename.empty())
-      filename = generateFilename("test_file_");
-    else
-      filename.append(".c");
-    std::cout << "Filename in writeFile api " << filename << std::endl;
-    return writeFile(filename, content);
+  std::string writeFile(const std::string &content, 
+                        std::string &filename,
+                        const std::string &dirName = "../test") {
+    if (filename.empty()) {
+      filename = generateFilename("test_file");
+    } else if (filename.find(".cpp") == std::string::npos) {
+      filename += ".c";
+    }
+    
+    std::cout << "Generated filename: " << filename << std::endl;
+    return writeFile(filename, content, dirName);
   }
 };
 

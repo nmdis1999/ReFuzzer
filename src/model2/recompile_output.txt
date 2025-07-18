@@ -1,0 +1,14 @@
+Refuzzing directory: /users/iti_s/cpp_1_/correct
+Using model: llama3.2
+
+=== FIXING COMPILATION ERRORS ===
+Using log directory: /users/iti_s/cpp_1_/log
+Warning: Source file not found for test_file__20250608_052244_582.log
+Warning: Source file not found for test_file__20250607_120717_933.log
+Warning: Source file not found for test_file__20250608_093545_677.log
+Warning: Source file not found for test_file__20250607_193351_960.log
+
+=== SUMMARY ===
+Total fix attempts: 0
+Successfully fixed: 0
+Fix success rate: 0%
