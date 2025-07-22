@@ -2,7 +2,7 @@
 
 # Configuration - All parameters are optional
 QUERIES_PER_MODEL=${1:-5}
-THREADS=${2:-$(nproc)}  # Use all available CPU cores by default
+THREADS=${2:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)}  # Use all available CPU cores by default
 OUTPUT_DIR=${3:-"./query_results_$(date +%Y%m%d_%H%M%S)"}  # Default to current directory
 DURATION_HOURS=${4:-24}  # Run for 24 hours by default
 QUERY_GENERATOR="./src/query_generator/query_generator"
@@ -15,12 +15,12 @@ echo "Duration: $DURATION_HOURS hours"
 echo "Threads: $THREADS"
 echo "Queries per model per cycle: $QUERIES_PER_MODEL"
 echo "Output directory: $OUTPUT_DIR"
-echo "End time: $(date -d @$END_TIME)"
+echo "End time: $(date -r $END_TIME 2>/dev/null || date -jf %s $END_TIME 2>/dev/null || date)"  # macOS and Linux compatibility
 echo "================================"
 
 # Validation checks
 if [[ ! -x "$QUERY_GENERATOR" ]]; then
-    echo "Error: Query generator '$QUERY_GENERATOR' not found!"
+    echo "Error: Query generator '$QUERY_GENERATOR' not found or not executable!"
     exit 1
 fi
 
@@ -60,28 +60,27 @@ done
 TOTAL_QUERIES=0
 CYCLE_COUNT=0
 
-# Function to run a single query
+# Function to run a single query (no stats update here)
 run_query() {
-    local model=$1
-    local query_num=$2
-    local cycle=$3
-    local timestamp=$(date '+%Y%m%d_%H%M%S')
-    local output_file="${OUTPUT_DIR}/output_${model}_cycle${cycle}_query${query_num}_${timestamp}.txt"
+    local model="$1"
+    local query_num="$2"
+    local cycle="$3"
+    local timestamp
+    timestamp=$(date '+%Y%m%d_%H%M%S')
+    local output_file="${OUTPUT_DIR}/output_${model//:/_}_cycle${cycle}_query${query_num}_${timestamp}.txt"
     local log_file="${OUTPUT_DIR}/execution.log"
-    
+    local status_file="${OUTPUT_DIR}/status_${model//:/_}_cycle${cycle}_query${query_num}_${timestamp}.txt"
+
     echo "[$(date)] Thread-$query_num: Starting query with model: $model (Cycle: $cycle)" | tee -a "$log_file"
-    
-    # Run the query with timeout to prevent hanging
-    if timeout 300 $QUERY_GENERATOR generate --model="$model" > "$output_file" 2>&1; then
+
+    if timeout 300 "$QUERY_GENERATOR" generate --model="$model" > "$output_file" 2>&1; then
+        echo "SUCCESS" > "$status_file"
         echo "[$(date)] Thread-$query_num: SUCCESS - Completed query with model: $model (Cycle: $cycle)" | tee -a "$log_file"
-        MODEL_SUCCESSES["$model"]=$((MODEL_SUCCESSES["$model"] + 1))
     else
+        echo "FAILURE" > "$status_file"
         echo "[$(date)] Thread-$query_num: FAILED - Query with model: $model (Cycle: $cycle)" | tee -a "$log_file"
-        MODEL_FAILURES["$model"]=$((MODEL_FAILURES["$model"] + 1))
         echo "Error occurred at $(date)" >> "$output_file"
     fi
-    
-    MODEL_COUNTERS["$model"]=$((MODEL_COUNTERS["$model"] + 1))
 }
 
 # Function to print statistics
@@ -99,10 +98,10 @@ print_stats() {
             local success=${MODEL_SUCCESSES["$model"]}
             local failure=${MODEL_FAILURES["$model"]}
             local success_rate=0
-            if [[ $total -gt 0 ]]; then
+            if [[ ${total:-0} -gt 0 ]]; then
                 success_rate=$(echo "scale=2; $success * 100 / $total" | bc -l 2>/dev/null || echo "0")
             fi
-            echo "  $model: Total=$total, Success=$success, Failed=$failure, Success Rate=${success_rate}%"
+            echo "  $model: Total=${total:-0}, Success=${success:-0}, Failed=${failure:-0}, Success Rate=${success_rate}%"
         done
         echo ""
         echo "Output files are stored in: $OUTPUT_DIR"
@@ -130,40 +129,51 @@ while [[ $(date +%s) -lt $END_TIME ]]; do
     CYCLE_COUNT=$((CYCLE_COUNT + 1))
     echo ""
     echo "=== Starting Cycle $CYCLE_COUNT ==="
-    echo "Time remaining: $(( (END_TIME - $(date +%s)) / 3600 )) hours $(( ((END_TIME - $(date +%s)) % 3600) / 60 )) minutes"
-    
-    # Process all models simultaneously
+    local_now=$(date +%s)
+    time_left=$((END_TIME - local_now))
+    echo "Time remaining: $(( time_left / 3600 )) hours $(( (time_left % 3600) / 60 )) minutes"
+
     for model in "${MODELS[@]}"; do
         (
             echo "Cycle $CYCLE_COUNT: Starting $QUERIES_PER_MODEL queries with model: $model"
-            
-            # Run queries for this model with thread limit
             for ((i=1; i<=QUERIES_PER_MODEL; i++)); do
                 run_query "$model" "$i" "$CYCLE_COUNT" &
-                TOTAL_QUERIES=$((TOTAL_QUERIES + 1))
-                
-                # Limit concurrent queries per model
-                if ((i % THREADS == 0)); then
+                # No stats update here
+                if (( i % THREADS == 0 )); then
                     wait
                 fi
             done
-            
-            # Wait for any remaining queries from this model
             wait
             echo "Cycle $CYCLE_COUNT: Completed all queries for $model"
         ) &
     done
-    
-    # Wait for all models in this cycle to complete
+
     wait
-    
+
+    # Aggregate stats after all queries in this cycle
+    for model in "${MODELS[@]}"; do
+        for status_file in "${OUTPUT_DIR}/status_${model//:/_}_cycle${CYCLE_COUNT}_query"*".txt"; do
+            if [[ -f "$status_file" ]]; then
+                status=$(cat "$status_file")
+                if [[ "$status" == "SUCCESS" ]]; then
+                    MODEL_SUCCESSES["$model"]=$(( ${MODEL_SUCCESSES["$model"]:-0} + 1 ))
+                elif [[ "$status" == "FAILURE" ]]; then
+                    MODEL_FAILURES["$model"]=$(( ${MODEL_FAILURES["$model"]:-0} + 1 ))
+                fi
+                MODEL_COUNTERS["$model"]=$(( ${MODEL_COUNTERS["$model"]:-0} + 1 ))
+                TOTAL_QUERIES=$((TOTAL_QUERIES + 1))
+                rm -f "$status_file"
+            fi
+        done
+    done
+
     echo "=== Completed Cycle $CYCLE_COUNT ==="
-    
+
     # Print periodic statistics
     if ((CYCLE_COUNT % 5 == 0)); then
         print_stats
     fi
-    
+
     # Small delay between cycles to prevent overwhelming the system
     sleep 2
 done
@@ -176,7 +186,8 @@ print_stats
 {
     echo "Query Runner Execution Summary"
     echo "============================="
-    echo "Start time: $(date -d @$(($(date +%s) - (DURATION_HOURS * 3600))))"
+    start_time=$(date -r $((END_TIME - DURATION_HOURS * 3600)) 2>/dev/null || date -jf %s $((END_TIME - DURATION_HOURS * 3600)) 2>/dev/null || date)
+    echo "Start time: $start_time"
     echo "End time: $(date)"
     echo "Duration: $DURATION_HOURS hours"
     echo "Total cycles: $CYCLE_COUNT"

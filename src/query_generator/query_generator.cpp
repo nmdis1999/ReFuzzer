@@ -24,13 +24,11 @@ std::string expandUserPath(const std::string& path) {
     return path;
 }
 void setupDirectories(const std::string& dirPath) {
-  std::string resultDir = dirPath + "_recompiled";
-  fs::create_directories(resultDir + "/correct");
-  fs::create_directories(resultDir + "/incorrect");
-  fs::create_directories(resultDir + "/object");
-  fs::create_directories(resultDir + "/log");
-  
-  std::cout << "Created directories for organizing code in " << resultDir << std::endl;
+  fs::create_directories(dirPath + "/correct");
+  fs::create_directories(dirPath + "/incorrect");
+  fs::create_directories(dirPath + "/object");
+  fs::create_directories(dirPath + "/log");
+  std::cout << "Created directories for organizing code in " << dirPath << std::endl;
 }
 void fixCFilesUsingRecompile(const std::string& modelName, const std::string& dirName, 
                            const std::string& compileLogDir, const std::string& sanitizeLogDir) {
@@ -68,101 +66,12 @@ void fixCFilesUsingRecompile(const std::string& modelName, const std::string& di
     std::cerr << "Make sure the 'recompile' executable exists at ~/ReFuzzer/src/model2/recompile and is executable" << std::endl;
   }
 }
-void saveResultsToSourceDirectory(const std::string& dirPath) {
-  std::string resultDir = dirPath + "_recompiled";
-  std::cout << "Organizing results in " << resultDir << "..." << std::endl;
-  
-  if (fs::exists(resultDir + "/correct")) {
-    for (const auto& entry : fs::directory_iterator(resultDir + "/correct")) {
-      fs::remove(entry.path());
-    }
-  }
-  
-  if (fs::exists(resultDir + "/incorrect")) {
-    for (const auto& entry : fs::directory_iterator(resultDir + "/incorrect")) {
-      fs::remove(entry.path());
-    }
-  }
-  
-  std::unordered_set<std::string> processedFiles;
-  
-  if (fs::exists("../correct_code")) {
-    for (const auto& entry : fs::directory_iterator("../correct_code")) {
-      if (entry.path().extension() == ".cpp") {
-        std::string filename = entry.path().filename().string();
-        fs::path destPath = fs::path(resultDir) / "correct" / filename;
-        
-        if (processedFiles.find(filename) == processedFiles.end()) {
-          try {
-            fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
-            std::cout << "Copied correct file to: " << destPath.string() << std::endl;
-            processedFiles.insert(filename);
-          } catch (const fs::filesystem_error& e) {
-            std::cerr << "Error copying file: " << e.what() << std::endl;
-          }
-        }
-      }
-    }
-  }
-  
-  for (const auto& entry : fs::directory_iterator("../test")) {
-    if (entry.path().extension() == ".cpp") {
-      std::string filename = entry.path().filename().string();
-      std::string basename = entry.path().stem().string();
-      fs::path objectPath = "../object/" + basename + ".o";
-      
-      if (processedFiles.find(filename) != processedFiles.end()) {
-        continue;
-      }
-      
-      if (!fs::exists(objectPath)) {
-        fs::path destPath = fs::path(resultDir) / "incorrect" / filename;
-        try {
-          fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
-          std::cout << "Copied incorrect file to: " << destPath.string() << std::endl;
-          processedFiles.insert(filename);
-        } catch (const fs::filesystem_error& e) {
-          std::cerr << "Error copying file: " << e.what() << std::endl;
-        }
-      } else {
-        fs::path correctPath = "../correct_code/" + filename;
-        if (!fs::exists(correctPath)) {
-          fs::path destPath = fs::path(resultDir) / "incorrect" / filename;
-          try {
-            fs::copy_file(entry.path(), destPath, fs::copy_options::overwrite_existing);
-            std::cout << "Copied file with object but with possible sanitizer errors to: " << destPath.string() << std::endl;
-            processedFiles.insert(filename);
-          } catch (const fs::filesystem_error& e) {
-            std::cerr << "Error copying file: " << e.what() << std::endl;
-          }
-        }
-      }
-    }
-  }
-  
-  int correctCount = 0;
-  int incorrectCount = 0;
-  
-  if (fs::exists(resultDir + "/correct")) {
-    for (const auto& entry : fs::directory_iterator(resultDir + "/correct")) {
-      correctCount++;
-    }
-  }
-  
-  if (fs::exists(resultDir + "/incorrect")) {
-    for (const auto& entry : fs::directory_iterator(resultDir + "/incorrect")) {
-      incorrectCount++;
-    }
-  }
-  
-  std::cout << "Finished organizing files in " << resultDir << std::endl;
-  std::cout << "Summary: " << correctCount << " correct files, " 
-            << incorrectCount << " incorrect files" << std::endl;
-  std::cout << "Total: " << (correctCount + incorrectCount) << " files processed" << std::endl;
-}
 void compileCFilesInDirectory(const std::string& dirPath) {
   
-  std::string resultDir = dirPath + "_";
+  std::string cleanDirPath = dirPath;
+  if (!cleanDirPath.empty() && cleanDirPath.back() == '/')
+    cleanDirPath.pop_back();
+  std::string resultDir = cleanDirPath + "_";
   fs::create_directories(resultDir + "/correct");
   fs::create_directories(resultDir + "/incorrect");
   fs::create_directories(resultDir + "/object");
@@ -344,7 +253,7 @@ int main(int argc, char *argv[]) {
     
     compileCFilesInDirectory(dirPath);
     
-    std::cout << "Files copied to ../test and compilation complete." << std::endl;
+    std::cout << "Files copied and compilation complete." << std::endl;
     std::cout << "You can now run sanitizer checks with given option in help." << std::endl;
   }  else if (command == "sanitize" || command == "san") {
     // Always mention to the user that if directory is not provided the code 
@@ -502,8 +411,8 @@ int main(int argc, char *argv[]) {
 } else if (command == "refuzz" || command == "rf") {
     std::string modelName = parseModelOption(argc, argv);
     std::string dirName = parseOption(argc, argv, "--dir=", "../test");
-    std::string compileLogDir = parseOption(argc, argv, "--compile=", "");
-    std::string sanitizeLogDir = parseOption(argc, argv, "--sanitize=", "");
+    std::string compileLogDir = parseOption(argc, argv, "--compileLog=", "");
+    std::string sanitizeLogDir = parseOption(argc, argv, "--sanitizerLog=", "");
     
     // Expand user paths
     dirName = expandUserPath(dirName);
@@ -539,29 +448,13 @@ int main(int argc, char *argv[]) {
       fixCFilesUsingRecompile(modelName, dirName, compileLogDir, sanitizeLogDir);
     } else {
       std::cout << "\n=== PHASE 1: SKIPPING RECOMPILE ===" << std::endl;
-      std::cout << "No log directories specified with --compile or --sanitize" << std::endl;
-    }
-    
-    std::cout << "\n=== PHASE 2: SANITIZER CHECKS ===" << std::endl;
-    std::cout << "Running sanitizer checks on all files..." << std::endl;
-    std::string sanitizeCmd = "./query_generator sanitize --dir=\"" + dirName + "\"";
-    std::cout << "Executing: " << sanitizeCmd << std::endl;
-    int sanitizeResult = std::system(sanitizeCmd.c_str());
-    
-    if (sanitizeResult == 0) {
-      std::cout << "✓ Sanitizer checks completed" << std::endl;
-    } else {
-      std::cerr << "✗ Sanitizer checks failed" << std::endl;
-    }
+      std::cout << "No log directories specified with --compileLog or --sanitizeLog" << std::endl;
 
-    std::cout << "\n=== PHASE 3: ORGANIZING RESULTS ===" << std::endl;
-    saveResultsToSourceDirectory(dirName);
-    
-    std::string resultDir = dirName + "_recompiled";
     std::cout << "\n=== REFUZZ COMPLETE ===" << std::endl;
-    std::cout << "Results organized in: " << resultDir << std::endl;
-    std::cout << "✓ Correct files: " << resultDir << "/correct" << std::endl;
-    std::cout << "✓ Incorrect files: " << resultDir << "/incorrect" << std::endl;
-    std::cout << "✓ Object files: " << resultDir << "/object" << std::endl;
+    std::cout << "Results organized in: " << dirName << std::endl;
+    std::cout << "✓ Correct files: " << dirName << "/correct" << std::endl;
+    std::cout << "✓ Incorrect files: " << dirName << "/incorrect" << std::endl;
+    std::cout << "✓ Object files: " << dirName << "/object" << std::endl;
   }
+}
 }

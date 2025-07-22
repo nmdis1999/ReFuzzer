@@ -12,7 +12,8 @@ log
 test_parser
 __pycache__
 ollama-hpp
-query_generator/query_generator
+src/query_generator/query_generator
+src/model2/recompile
 CMakeFiles
 CMakeFiles/**/*
 CMakeCache.txt
@@ -23,3 +24,4 @@ build
 */**/CMakeFiles
 Makefile
 */**/Makefile
+.github

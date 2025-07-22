@@ -229,7 +229,7 @@ private:
                error.find("UndefinedBehaviorSanitizer:") != std::string::npos;
     }
 
-    // Check if error is likely a macOS false positive
+    // Check if error is likely to be a macOS false positive
     bool isMacOSFalsePositive(const std::string& error) {
         return error.find("libobjc.A.dylib") != std::string::npos ||
                error.find("CoreFoundation") != std::string::npos ||
@@ -401,10 +401,10 @@ public:
 
         if (allChecksPassed) {
             try {
-                std::string destPath = "../correct_code/" + fs::path(sourcePath).filename().string();
+                std::string destPath = "../test/correct/" + fs::path(sourcePath).filename().string();
                 std::cout << "Copying " << sourcePath << " to " << destPath << std::endl;
                 fs::copy(sourcePath, destPath, fs::copy_options::overwrite_existing);
-                std::cout << "All sanitizer checks passed. Copied " << sourcePath << " to " << destPath << std::endl;
+                std::cout << "All sanitizer checks passed. File stored in: " << destPath << std::endl;
                 
                 for (const auto& config : configs) {
                     std::string logFilename = baseFilename + "_" + config.name;
@@ -419,7 +419,7 @@ public:
                     }
                 }
             } catch (const fs::filesystem_error& e) {
-                std::cerr << "Error copying file to correct_code: " << e.what() << std::endl;
+                std::cerr << "Error copying file to correct: " << e.what() << std::endl;
             }
         }
     }

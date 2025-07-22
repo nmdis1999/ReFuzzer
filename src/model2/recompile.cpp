@@ -89,8 +89,12 @@ bool fixCompilationError(const std::string& sourceFile, const std::string& logFi
     
     if (!objectPath.empty()) {
         std::cout << "  ✓ Compilation error fixed!" << std::endl;
-        // Remove the log file since it's fixed
         fs::remove(logDir + "/" + logFile);
+        // Move to correct directory in original dir
+        std::string basename = fs::path(fixedPath).filename().string();
+        std::string correctPath = dir + "/correct/" + basename;
+        fs::create_directories(dir + "/correct");
+        fs::copy_file(fixedPath, correctPath, fs::copy_options::overwrite_existing);
         return true;
     } else {
         std::cout << "  ✗ Fix attempt failed" << std::endl;
@@ -140,18 +144,13 @@ bool fixSanitizerError(const std::string& sourceFile, const std::string& logFile
     std::string objectPath = objGen.generateObjectFile(fixedPath, dir);
     
     if (!objectPath.empty()) {
-        // TODO: Run sanitizer check on fixed code to verify it's actually fixed
-        // For now, assume it's fixed if it compiles
         std::cout << "  ✓ Sanitizer error fixed!" << std::endl;
-        // Remove the log file since it's fixed
         fs::remove(logDir + "/" + logFile);
-        
-        // Move to correct directory
-        std::string basename = fs::path(fixedPath).stem().string();
-        std::string correctPath = dir + "/correct/" + basename + ".cpp";
+        // Move to correct directory in original dir
+        std::string basename = fs::path(fixedPath).filename().string();
+        std::string correctPath = dir + "/correct/" + basename;
         fs::create_directories(dir + "/correct");
         fs::copy_file(fixedPath, correctPath, fs::copy_options::overwrite_existing);
-        
         return true;
     } else {
         std::cout << "  ✗ Fix attempt failed" << std::endl;
