@@ -37,6 +37,10 @@ cd ReFuzzer
 
 ```bash
 conan profile detect
+```
+if the command doesn't work, try updating the path in your desired profile.
+e.g `export PATH="$HOME/.local/bin:$PATH"` and then reload the profile.
+```
 conan install . --build=missing
 ```
 
